@@ -51,7 +51,7 @@ with open("../keywords/germany_language_keywords.json") as f:
 
 
 def add_germany(string: str, germany_word: str) -> str:
-    return " + ".join([x + " " + germany_word for x in string.split(" + ")])
+    return " + ".join([x + " " + germany_word for x in string.split("+")])
 
 
 # exclude certain keywords from adding "germany"
@@ -104,23 +104,27 @@ for country in countries:
     if os.path.isfile(get_output_file(country)):
         continue
 
+    print("\n" + country + "\n")
+
     df_keywords_country = df_keywords[
         ["KeywordID"] + assignment_language_country[country]
     ]
 
-    # def join_keywords(keywords: Iterable) -> str:
-    #     return "x"
-
-    df_keywords_country = df_keywords_country.groupby("KeywordID").agg(" + ".join)
-
     df_keywords_country = pd.melt(
-        df_keywords_country.reset_index(),
+        df_keywords_country,
         id_vars="KeywordID",
         var_name="Language",
         value_name="Keyword",
     )
 
-    display(df_keywords_country)
+    df_keywords_country = (
+        df_keywords_country.groupby("KeywordID")
+        .agg(" + ".join)
+        .drop(columns="Language")
+        .reset_index()
+    )
+
+    # display(df_keywords_country)
 
     df_responses = pd.concat(
         [get_response(k, country) for k in df_keywords_country["Keyword"]]
@@ -130,7 +134,7 @@ for country in countries:
         df_keywords_country, how="left", left_on="term", right_on="Keyword"
     ).drop(columns=["country", "term"])
 
-    display(df_responses)
+    # display(df_responses)
 
     df_responses.to_csv(get_output_file(country))
 
@@ -153,12 +157,12 @@ for country in countries:
         continue
 
     df_missing = (
-        df_responses[["value", "Language", "KeywordID", "Keyword"]]
-        .groupby(["Language", "KeywordID"])
+        df_responses[["value", "KeywordID", "Keyword"]]
+        .groupby("KeywordID")
         .agg("max")
         .replace([100, 0], ["true", "false"])
         .rename(columns={"value": "Success"})
-    ).sort_values(["Language", "KeywordID"])
+    ).sort_values("KeywordID")
 
     df_missing.to_excel(get_missing_file(country))
     display(df_missing)
@@ -179,12 +183,17 @@ for country in countries:
     df_missing["Country"] = country
     df_missings.append(df_missing)
 
-df_missing_all = pd.concat(df_missings)
-(
-    df_missing_all.drop(columns="Keyword")
+df_missing_all = (
+    pd.concat(df_missings)
+    .drop(columns="Keyword")
     .reset_index()
-    .pivot(index="KeywordID", columns=["Country", "Language"], values="Success")
-    .to_excel(f"../data/missing_all.xlsx")
+    .pivot_table(index="KeywordID", columns="Country", values="Success")
+    .reindex(countries, axis="columns")
 )
+
+display(df_missing_all)
+
+df_missing_all.to_excel(f"../data/missing_all.xlsx")
+
 
 # %%

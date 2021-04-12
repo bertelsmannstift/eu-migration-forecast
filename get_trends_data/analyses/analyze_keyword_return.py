@@ -7,6 +7,9 @@ from apiclient.discovery import build
 import json
 from IPython.display import display
 
+from unidecode import unidecode  # to remove diacritics
+import unicodedata as ud  # greek diacritics only
+
 from typing import Iterable
 
 pd.set_option("display.max_rows", 200)
@@ -29,7 +32,7 @@ service = build(
     discoveryServiceUrl=DISCOVERY_URL,
 )
 
-start_date = "2004-01"
+start_date = "2007-01"
 end_date = "2020-12"
 
 
@@ -37,7 +40,7 @@ end_date = "2020-12"
 # retrieve keywords
 
 df_keywords = pd.read_excel(
-    "../keywords/MigFor-Schlagwörter-Alle Sprachen22.02.21.xlsx"
+    "../keywords/MigFor-Schlagwörter-Alle Sprachen26.03.21.xlsx"
 )
 
 df_keywords = df_keywords.loc[~df_keywords["KeywordID"].isna()]
@@ -66,6 +69,26 @@ for col in df_keywords.columns:
 
 df_keywords = pd.concat([sub_df_w_germany, sub_df_wo_germany])
 df_keywords
+
+#%%
+# remove diacritics
+def add_removed_diacritics(keyword, fcn=unidecode):
+    kw_list = [s if s == fcn(s) else s + " + " + fcn(s) for s in keyword.split("+")]
+    return "+".join(kw_list)
+
+
+languages_dia = ["PL", "CS", "SK", "FR", "EL", "HR", "IT", "LV", "LI", "PT", "ES"]
+
+for lan in languages_dia:
+    df_keywords[lan] = df_keywords[lan].apply(add_removed_diacritics)
+
+strip_greek_accents = lambda s: ud.normalize("NFD", s).translate(
+    {ord("\N{COMBINING ACUTE ACCENT}"): None}
+)
+
+df_keywords["EL"] = df_keywords["EL"].apply(
+    add_removed_diacritics, fcn=strip_greek_accents
+)
 
 df_keywords
 
@@ -139,34 +162,45 @@ for country in countries:
     df_responses.to_csv(get_output_file(country))
 
 #%%
-# discover missing responses for each country
+# determine number of non-zero entries after resampling
+
+freq = "3M"
 
 
-def get_missing_file(country: str) -> str:
-    return f"../data/missing_{country}.xlsx"
+def get_non_zero_file(country: str) -> str:
+    return f"../data/non_zero_{country}.xlsx"
 
 
 for country in countries:
 
     try:
         df_responses = pd.read_csv(get_output_file(country), index_col=0)
+        df_responses["date"] = pd.to_datetime(df_responses["date"])
     except:
         continue
 
-    if os.path.isfile(get_missing_file(country)):
+    if os.path.isfile(get_non_zero_file(country)):
         continue
 
+    # resample
+    df_responses = (
+        df_responses.groupby(
+            [pd.Grouper(key="date", freq=freq), pd.Grouper(key="KeywordID")]
+        )
+        .agg({"value": np.mean, "Keyword": "first"})
+        .reset_index()
+    )
+    # display(df_responses)
+
     df_missing = (
-        df_responses[["value", "KeywordID", "Keyword"]]
+        df_responses[["value", "date", "KeywordID", "Keyword"]]
         .groupby("KeywordID")
-        .agg("max")
-        .replace([100, 0], ["true", "false"])
-        .rename(columns={"value": "Success"})
+        .agg({"value": lambda x: x.ne(0).sum() / len(x), "Keyword": "first"})
+        .rename(columns={"value": "AmountNonZero"})
     ).sort_values("KeywordID")
 
-    df_missing.to_excel(get_missing_file(country))
+    df_missing.to_excel(get_non_zero_file(country))
     display(df_missing)
-# df_missing.to_csv("data/missing_EN_IE.csv")
 
 # %%
 # aggregate missings
@@ -176,7 +210,7 @@ df_missings = []
 for country in countries:
 
     try:
-        df_missing = pd.read_excel(get_missing_file(country), index_col=[0, 1])
+        df_missing = pd.read_excel(get_non_zero_file(country), index_col=[0, 1])
     except:
         continue
 
@@ -187,13 +221,26 @@ df_missing_all = (
     pd.concat(df_missings)
     .drop(columns="Keyword")
     .reset_index()
-    .pivot_table(index="KeywordID", columns="Country", values="Success")
+    .pivot_table(index="KeywordID", columns="Country", values="AmountNonZero")
     .reindex(countries, axis="columns")
 )
 
 display(df_missing_all)
 
-df_missing_all.to_excel(f"../data/missing_all.xlsx")
+df_missing_all.to_excel(f"../data/non_zero_all.xlsx")
 
 
+# %%
+# EXAMPLE TIME SERIES AFTER RESAMPLING
+country = "GB"
+df_responses = pd.read_csv(get_output_file(country), index_col=0)
+df_responses["date"] = pd.to_datetime(df_responses["date"])
+df_responses = (
+    df_responses.groupby(
+        [pd.Grouper(key="date", freq=freq), pd.Grouper(key="KeywordID")]
+    )
+    .agg({"value": np.mean, "Keyword": "first"})
+    .reset_index()
+)
+df_responses[df_responses["KeywordID"]==12].plot("date", "value", label="unemployment germany")
 # %%

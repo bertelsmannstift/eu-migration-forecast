@@ -25,6 +25,5 @@
     "LV": ["LV", "DE", "EN"],
     "EE": ["ET", "DE", "EN"],
     "CY": ["EL", "DE", "EN"],
-    "LU": ["FR", "DE", "EN"],
-    "MT": ["DE", "EN"]
+    "LU": ["FR", "DE", "EN"]
 }

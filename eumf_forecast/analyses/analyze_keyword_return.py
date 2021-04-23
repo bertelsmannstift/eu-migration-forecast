@@ -103,7 +103,7 @@ countries = assignment_language_country.keys()
 
 
 def get_output_file(country: str) -> str:
-    return f"../data/data_{country}.csv"
+    return f"data/data_{country}.csv"
 
 
 #%%
@@ -168,7 +168,7 @@ freq = "3M"
 
 
 def get_non_zero_file(country: str) -> str:
-    return f"../data/non_zero_{country}.xlsx"
+    return f"data/non_zero_{country}.xlsx"
 
 
 for country in countries:
@@ -227,7 +227,7 @@ df_missing_all = (
 
 display(df_missing_all)
 
-df_missing_all.to_excel(f"../data/non_zero_all.xlsx")
+df_missing_all.to_excel(f"data/non_zero_all.xlsx")
 
 
 # %%

@@ -1,9 +1,9 @@
 #%%
 #
 import os
+import sys
 import pandas as pd
 import numpy as np
-import sqlite3
 from apiclient.discovery import build
 import json
 from IPython.display import display
@@ -25,7 +25,7 @@ GERMANY_TRANSLATION_FILE = "keywords/germany_language_keywords.json"
 DATA_VERSION = "21-04-22"
 
 # increase iteration to draw more data for averaging
-ITERATION = 1
+ITERATION = sys.argv[1] if len(sys.argv) > 1 else 0
 
 
 def get_output_file(country: str) -> str:
@@ -63,7 +63,7 @@ def add_germany(string: str, germany_word: str) -> str:
     return " + ".join([x + " " + germany_word for x in string.split("+")])
 
 
-def rand_str(chars=string.ascii_uppercase + string.digits, N=10):
+def rand_str(chars=string.ascii_uppercase + string.digits, N=20):
     return "".join(random.choice(chars) for _ in range(N))
 
 
@@ -91,8 +91,6 @@ for col in germany_language_keywords.keys():
     if col in languages_dia:
         df_keywords[col] = df_keywords[col].apply(add_removed_diacritics)
 
-    # add random string to shuffle Google Trends samples
-    df_keywords[col] = df_keywords[col].apply(lambda s: str(s) + " + " + rand_str())
 
 #%%
 # special case: greek diacritics
@@ -148,6 +146,11 @@ for country in countries:
         .agg(" + ".join)
         .drop(columns="Language")
         .reset_index()
+    )
+
+    # add random string to shuffle Google Trends samples
+    df_keywords_country["Keyword"] = df_keywords_country["Keyword"].apply(
+        lambda s: s + " + " + rand_str()
     )
 
     df_responses = pd.concat(

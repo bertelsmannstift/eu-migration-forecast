@@ -2,10 +2,8 @@
 #
 import os
 import pandas as pd
-import numpy as np
 import glob
 import json
-import matplotlib.pyplot as plt
 
 
 DATA_VERSION = "21-04-22"
@@ -32,17 +30,6 @@ countries = assignment_language_country.keys()
 # countries = ["HR"]
 
 
-def plot_timeseries(df, col):
-    df.plot(y=("mean", col))
-    plt.fill_between(
-        df.index,
-        df["mean", col] - df["sem", col],
-        df["mean", col] + df["sem", col],
-        alpha=0.5,
-    )
-    plt.show()
-
-
 for c in countries:
 
     print(c + "\n")
@@ -56,7 +43,7 @@ for c in countries:
     df = df.groupby(["date", "keyword_id"]).agg(["mean", "sem"])
 
     # resample
-    df = df.groupby([pd.Grouper(level=0, freq="3M"), pd.Grouper(level=1)]).agg("mean")
+    # df = df.groupby([pd.Grouper(level=0, freq="3M"), pd.Grouper(level=1)]).agg("mean")
 
     df = df.unstack(level=1)["value"]
 

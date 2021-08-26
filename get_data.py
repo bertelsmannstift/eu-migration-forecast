@@ -1,19 +1,18 @@
-#%%
+# %%
 #
-import os
-import sys
-import pandas as pd
-import numpy as np
-from apiclient.discovery import build
 import json
-from IPython.display import display
+import os
 import random
 import string
-
-from unidecode import unidecode  # to remove diacritics
+import sys
 import unicodedata as ud  # greek diacritics only
-
 from typing import Iterable
+
+import numpy as np
+import pandas as pd
+from googleapiclient.discovery import build
+from IPython.display import display
+from unidecode import unidecode  # to remove diacritics
 
 START_DATE = "2007-01"
 END_DATE = "2020-12"
@@ -60,7 +59,8 @@ with open(GERMANY_TRANSLATION_FILE) as f:
 
 
 def add_germany(string: str, germany_word: str) -> str:
-    return " + ".join([x + " " + germany_word for x in string.split("+")])
+    return " + ".join([x + " " +
+                      germany_word for x in string.split("+")])
 
 
 def rand_str(chars=string.ascii_uppercase + string.digits, N=20):
@@ -68,17 +68,30 @@ def rand_str(chars=string.ascii_uppercase + string.digits, N=20):
 
 
 def add_removed_diacritics(keyword, fcn=unidecode):
-    kw_list = [s if s == fcn(s) else s + " + " + fcn(s) for s in keyword.split("+")]
+    kw_list = [s if s == fcn(s) else s + " + " + fcn(s)
+               for s in keyword.split("+")]
     return "+".join(kw_list)
 
 
-languages_dia = ["PL", "CS", "SK", "FR", "EL", "HR", "IT", "LV", "LI", "PT", "ES"]
+languages_dia = [
+    "PL",
+    "CS",
+    "SK",
+    "FR",
+    "EL",
+    "HR",
+    "IT",
+    "LV",
+    "LI",
+    "PT",
+    "ES"]
 
 for col in germany_language_keywords.keys():
 
     # add "germany"
     df_keywords[col] = df_keywords.apply(
-        lambda row: add_germany(row[col], germany_language_keywords[col])
+        lambda row: add_germany(
+            row[col], germany_language_keywords[col])
         if row.isna()["FlagWithoutGermany"]
         else row[col],
         axis=1,
@@ -89,14 +102,16 @@ for col in germany_language_keywords.keys():
 
     # remove diacritics
     if col in languages_dia:
-        df_keywords[col] = df_keywords[col].apply(add_removed_diacritics)
+        df_keywords[col] = df_keywords[col].apply(
+            add_removed_diacritics)
 
 
-#%%
+# %%
 # special case: greek diacritics
-strip_greek_accents = lambda s: ud.normalize("NFD", s).translate(
+def strip_greek_accents(s): return ud.normalize("NFD", s).translate(
     {ord("\N{COMBINING ACUTE ACCENT}"): None}
 )
+
 
 df_keywords["EL"] = df_keywords["EL"].apply(
     add_removed_diacritics, fcn=strip_greek_accents
@@ -154,7 +169,8 @@ for country in countries:
     )
 
     df_responses = pd.concat(
-        [get_response(k, country) for k in df_keywords_country["Keyword"]]
+        [get_response(k, country)
+         for k in df_keywords_country["Keyword"]]
     )
 
     df_responses = (

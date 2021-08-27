@@ -97,7 +97,7 @@ VALUES('CY', 'Cyprus');
 INSERT INTO trend.l_country (short, country)
 VALUES('LU', 'Luxembourg');
 INSERT INTO trend.l_version (version)
-VALUES('21-04-22')
+VALUES('21-04-22');
 INSERT INTO trend.a_country_language (country_id, language_id)
 SELECT c.id,
     l.id

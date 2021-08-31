@@ -7,7 +7,7 @@ import pandas as pd
 from googleapiclient.discovery import build
 from unidecode import unidecode  # to remove diacritics
 
-from db_stuff import Keyword, db_connector
+from db_stuff import Keyword, Searchword, db_connector
 
 START_DATE = "2007-01"
 END_DATE = "2020-12"
@@ -51,6 +51,17 @@ def add_removed_diacritics(row, fcn=unidecode):
     row['keyword'] = " + ".join([s.strip() if s == fcn(s) else s.strip() + " + " + fcn(s)
                                  for s in row['keyword'].split("+")])
     return row
+
+
+def get_response(term, geo):
+    return pd.DataFrame(
+        service.getGraph(
+            terms=term,
+            restrictions_startDate=START_DATE,
+            restrictions_endDate=END_DATE,
+            restrictions_geo=geo,
+        ).execute()["lines"][0]["points"]
+    ).assign(**{"country": geo, "term": term})
 
 
 # keywords = keywords[keywords['without_germany'] == True]
@@ -106,8 +117,25 @@ searchwords.to_sql(
     if_exists='append',
     index=False)
 
-searchwords = db.get_searchwords(version)
+searchwords = db.get_searchwords(version).merge(
+    countries, left_on='country_id', right_on='id')
 # s = df.assign(count=1).groupby(['gb1',
 #                                 'gb2']).agg({'count': 'sum',
 #                                              'text1': lambda x: ','.join(set(x)),
 #                                              'text2': lambda x: ','.join(set(x))}).reset_index()
+
+responses = searchwords.apply(
+    lambda row: get_response(row['searchword'], row['short']),
+    axis=1,
+)
+
+# korrekte response table bauen
+df_responses = (
+    df_responses.merge(
+        df_keywords_country, how="left", left_on="term", right_on="Keyword"
+    )
+    .drop(columns=["country", "term"])
+    .rename(columns={"KeywordID": "keyword_id", "Keyword": "keyword"})
+)
+
+# responses zur DB schreiben

@@ -1,24 +1,25 @@
 import random
 import string
 import unicodedata as ud  # greek diacritics only
+from re import search
 
 import pandas as pd
 from googleapiclient.discovery import build
 from unidecode import unidecode  # to remove diacritics
 
-from db_stuff import db_connector
+from db_stuff import Keyword, db_connector
 
 START_DATE = "2007-01"
 END_DATE = "2020-12"
+DATA_VERSION = "21-04-22"
 
 db = db_connector()
 
-languages = pd.DataFrame([x._as_dict() for x in db.get_languages()])
-countries = pd.DataFrame([x._as_dict() for x in db.get_countries()])
-keywords = pd.DataFrame([x._as_dict() for x in db.get_keywords()])
-assignments = pd.DataFrame([x._as_dict()
-                           for x in db.get_assignments()])
-
+version = db.get_version_id(DATA_VERSION)
+languages = db.get_languages()
+countries = db.get_countries()
+keywords = db.get_keywords(version)
+assignments = db.get_assignments()
 # google trends API connection
 
 SERVER = "https://trends.googleapis.com"
@@ -89,6 +90,14 @@ searchwords.rename(
         'keyword': 'searchword'},
     inplace=True)
 
+## --------------------------------------------- ##
+# synch searchwords with db to get correct ids
+## --------------------------------------------- ##
+
+searchwords = db.clean_df_db_dups(
+    searchwords, 'trend.d_searchword', [
+        'country_id', 'version_id', 'keyword_id'])
+
 searchwords.to_sql(
     'd_searchword',
     db.engine,
@@ -97,7 +106,7 @@ searchwords.to_sql(
     if_exists='append',
     index=False)
 
-
+searchwords = db.get_searchwords(version)
 # s = df.assign(count=1).groupby(['gb1',
 #                                 'gb2']).agg({'count': 'sum',
 #                                              'text1': lambda x: ','.join(set(x)),

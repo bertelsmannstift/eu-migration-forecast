@@ -52,6 +52,11 @@ def add_removed_diacritics(row, fcn=unidecode):
     return row
 
 
+def strip_greek_accents(s: str) -> str:
+    return ud.normalize("NFD", s).translate(
+        {ord("\N{COMBINING ACUTE ACCENT}"): None})
+
+
 def get_response(term: str, geo: str) -> DataFrame:
     return pd.DataFrame(
         SERVICE.getGraph(
@@ -85,11 +90,13 @@ def prepare_searchwords(keywords: DataFrame,
         if languages[languages['id'] == row['language_id']]['remove_diacritics'].values[0] == True
         else row,
         axis=1
+    ).apply(
+        lambda row: add_removed_diacritics(
+            row, fcn=strip_greek_accents)
+        if row['language_id'] == languages[languages['short'] == 'EL']['id'].values[0]
+        else row,
+        axis=1
     )
-
-    ## --------------------------------------------- ##
-    # Greek diacritics
-    ## --------------------------------------------- ##
 
     # build searchwords
     searchwords = pd.merge(

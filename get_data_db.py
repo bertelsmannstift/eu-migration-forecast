@@ -54,7 +54,7 @@ def add_removed_diacritics(row, fcn=unidecode):
 
 def strip_greek_accents(s: str) -> str:
     return ud.normalize("NFD", s).translate(
-        {ord("\N{COMBINING ACUTE ACCENT}"): None})
+        {ord("\N{COMBINING ACUTE ACCENT}"): None}).strip()
 
 
 def get_response(term: str, geo: str) -> DataFrame:

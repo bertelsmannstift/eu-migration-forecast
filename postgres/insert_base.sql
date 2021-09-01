@@ -1,47 +1,47 @@
-INSERT INTO trend.l_language (short, lang)
-VALUES('DE', 'German');
-INSERT INTO trend.l_language (short, lang)
-VALUES('EN', 'English');
-INSERT INTO trend.l_language (short, lang)
-VALUES('PL', 'Polish');
-INSERT INTO trend.l_language (short, lang)
-VALUES('CS', 'Czech');
-INSERT INTO trend.l_language (short, lang)
-VALUES('SK', 'Slovak');
-INSERT INTO trend.l_language (short, lang)
-VALUES('BG', 'Bulgarian');
-INSERT INTO trend.l_language (short, lang)
-VALUES('DA', 'Danish');
-INSERT INTO trend.l_language (short, lang)
-VALUES('ET', 'Estonian');
-INSERT INTO trend.l_language (short, lang)
-VALUES('FI', 'Finnish');
-INSERT INTO trend.l_language (short, lang)
-VALUES('FR', 'French');
-INSERT INTO trend.l_language (short, lang)
-VALUES('EL', 'Greek, Modern');
-INSERT INTO trend.l_language (short, lang)
-VALUES('HR', 'Croatian');
-INSERT INTO trend.l_language (short, lang)
-VALUES('HU', 'Hungarian');
-INSERT INTO trend.l_language (short, lang)
-VALUES('IT', 'Italian');
-INSERT INTO trend.l_language (short, lang)
-VALUES('LV', 'Latvian');
-INSERT INTO trend.l_language (short, lang)
-VALUES('LI', 'Limburgan');
-INSERT INTO trend.l_language (short, lang)
-VALUES('PT', 'Portuguese');
-INSERT INTO trend.l_language (short, lang)
-VALUES('RO', 'Romanian');
-INSERT INTO trend.l_language (short, lang)
-VALUES('SL', 'Slovenian');
-INSERT INTO trend.l_language (short, lang)
-VALUES('ES', 'Spanish');
-INSERT INTO trend.l_language (short, lang)
-VALUES('SV', 'Swedish');
-INSERT INTO trend.l_language (short, lang)
-VALUES('NL', 'Dutch');
+INSERT INTO trend.l_language (short, lang, remove_diacritics, germany)
+VALUES('DE', 'German', FALSE, 'Deutschland');
+INSERT INTO trend.l_language (short, lang, remove_diacritics, germany)
+VALUES('EN', 'English', FALSE, 'Germany');
+INSERT INTO trend.l_language (short, lang, remove_diacritics, germany)
+VALUES('PL', 'Polish', TRUE, 'Niemcy');
+INSERT INTO trend.l_language (short, lang, remove_diacritics, germany)
+VALUES('CS', 'Czech', TRUE, 'Německo');
+INSERT INTO trend.l_language (short, lang, remove_diacritics, germany)
+VALUES('SK', 'Slovak', TRUE, 'Nemecko');
+INSERT INTO trend.l_language (short, lang, remove_diacritics, germany)
+VALUES('BG', 'Bulgarian', FALSE, 'Германия');
+INSERT INTO trend.l_language (short, lang, remove_diacritics, germany)
+VALUES('DA', 'Danish', FALSE, 'Tyskland');
+INSERT INTO trend.l_language (short, lang, remove_diacritics, germany)
+VALUES('ET', 'Estonian', FALSE, 'Saksamaa');
+INSERT INTO trend.l_language (short, lang, remove_diacritics, germany)
+VALUES('FI', 'Finnish', FALSE, 'Saksa');
+INSERT INTO trend.l_language (short, lang, remove_diacritics, germany)
+VALUES('FR', 'French', TRUE, 'Allemagne');
+INSERT INTO trend.l_language (short, lang, remove_diacritics, germany)
+VALUES('EL', 'Greek, Modern', TRUE, 'Γερμανία');
+INSERT INTO trend.l_language (short, lang, remove_diacritics, germany)
+VALUES('HR', 'Croatian', TRUE, 'Njemačka');
+INSERT INTO trend.l_language (short, lang, remove_diacritics, germany)
+VALUES('HU', 'Hungarian', FALSE, 'Németország');
+INSERT INTO trend.l_language (short, lang, remove_diacritics, germany)
+VALUES('IT', 'Italian', TRUE, 'Germania');
+INSERT INTO trend.l_language (short, lang, remove_diacritics, germany)
+VALUES('LV', 'Latvian', TRUE, 'Vācija');
+INSERT INTO trend.l_language (short, lang, remove_diacritics, germany)
+VALUES('LI', 'Limburgan', TRUE, 'Vokietija');
+INSERT INTO trend.l_language (short, lang, remove_diacritics, germany)
+VALUES('PT', 'Portuguese', TRUE, 'Alemanha');
+INSERT INTO trend.l_language (short, lang, remove_diacritics, germany)
+VALUES('RO', 'Romanian', FALSE, 'Germania');
+INSERT INTO trend.l_language (short, lang, remove_diacritics, germany)
+VALUES('SL', 'Slovenian', FALSE, 'Nemčija');
+INSERT INTO trend.l_language (short, lang, remove_diacritics, germany)
+VALUES('ES', 'Spanish', TRUE, 'Alemania');
+INSERT INTO trend.l_language (short, lang, remove_diacritics, germany)
+VALUES('SV', 'Swedish', FALSE, 'Tyskland');
+INSERT INTO trend.l_language (short, lang, remove_diacritics, germany)
+VALUES('NL', 'Dutch', FALSE, 'Duitsland');
 INSERT INTO trend.l_country (short, country)
 VALUES('FR', 'France');
 INSERT INTO trend.l_country (short, country)
@@ -260,113 +260,3 @@ SELECT c.id,
 FROM trend.l_country AS c
     INNER JOIN trend.l_language AS l ON c.short = 'LU'
     and l.short IN ('FR', 'DE', 'EN');
-INSERT INTO trend.l_germany_language (language_id, germany)
-SELECT id,
-    'Deutschland'
-FROM trend.l_language
-WHERE short = 'DE';
-INSERT INTO trend.l_germany_language (language_id, germany)
-SELECT id,
-    'Germany'
-FROM trend.l_language
-WHERE short = 'EN';
-INSERT INTO trend.l_germany_language (language_id, germany)
-SELECT id,
-    'Niemcy'
-FROM trend.l_language
-WHERE short = 'PL';
-INSERT INTO trend.l_germany_language (language_id, germany)
-SELECT id,
-    'Německo'
-FROM trend.l_language
-WHERE short = 'CS';
-INSERT INTO trend.l_germany_language (language_id, germany)
-SELECT id,
-    'Nemecko'
-FROM trend.l_language
-WHERE short = 'SK';
-INSERT INTO trend.l_germany_language (language_id, germany)
-SELECT id,
-    'Германия'
-FROM trend.l_language
-WHERE short = 'BG';
-INSERT INTO trend.l_germany_language (language_id, germany)
-SELECT id,
-    'Tyskland'
-FROM trend.l_language
-WHERE short = 'DA';
-INSERT INTO trend.l_germany_language (language_id, germany)
-SELECT id,
-    'Saksamaa'
-FROM trend.l_language
-WHERE short = 'ET';
-INSERT INTO trend.l_germany_language (language_id, germany)
-SELECT id,
-    'Saksa'
-FROM trend.l_language
-WHERE short = 'FI';
-INSERT INTO trend.l_germany_language (language_id, germany)
-SELECT id,
-    'Allemagne'
-FROM trend.l_language
-WHERE short = 'FR';
-INSERT INTO trend.l_germany_language (language_id, germany)
-SELECT id,
-    'Γερμανία'
-FROM trend.l_language
-WHERE short = 'EL';
-INSERT INTO trend.l_germany_language (language_id, germany)
-SELECT id,
-    'Njemačka'
-FROM trend.l_language
-WHERE short = 'HR';
-INSERT INTO trend.l_germany_language (language_id, germany)
-SELECT id,
-    'Németország'
-FROM trend.l_language
-WHERE short = 'HU';
-INSERT INTO trend.l_germany_language (language_id, germany)
-SELECT id,
-    'Germania'
-FROM trend.l_language
-WHERE short = 'IT';
-INSERT INTO trend.l_germany_language (language_id, germany)
-SELECT id,
-    'Vācija'
-FROM trend.l_language
-WHERE short = 'LV';
-INSERT INTO trend.l_germany_language (language_id, germany)
-SELECT id,
-    'Vokietija'
-FROM trend.l_language
-WHERE short = 'LI';
-INSERT INTO trend.l_germany_language (language_id, germany)
-SELECT id,
-    'Alemanha'
-FROM trend.l_language
-WHERE short = 'PT';
-INSERT INTO trend.l_germany_language (language_id, germany)
-SELECT id,
-    'Germania'
-FROM trend.l_language
-WHERE short = 'RO';
-INSERT INTO trend.l_germany_language (language_id, germany)
-SELECT id,
-    'Nemčija'
-FROM trend.l_language
-WHERE short = 'SL';
-INSERT INTO trend.l_germany_language (language_id, germany)
-SELECT id,
-    'Alemania'
-FROM trend.l_language
-WHERE short = 'ES';
-INSERT INTO trend.l_germany_language (language_id, germany)
-SELECT id,
-    'Tyskland'
-FROM trend.l_language
-WHERE short = 'SV';
-INSERT INTO trend.l_germany_language (language_id, germany)
-SELECT id,
-    'Duitsland'
-FROM trend.l_language
-WHERE short = 'NL';

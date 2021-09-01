@@ -1,13 +1,15 @@
 import random
 import string
 import unicodedata as ud  # greek diacritics only
+from datetime import datetime
 from re import search
 
 import pandas as pd
 from googleapiclient.discovery import build
+from sqlalchemy import select
 from unidecode import unidecode  # to remove diacritics
 
-from db_stuff import Keyword, Searchword, db_connector
+from db_stuff import db_connector
 
 START_DATE = "2007-01"
 END_DATE = "2020-12"
@@ -15,11 +17,19 @@ DATA_VERSION = "21-04-22"
 
 db = db_connector()
 
-version = db.get_version_id(DATA_VERSION)
-languages = db.get_languages()
-countries = db.get_countries()
-keywords = db.get_keywords(version)
-assignments = db.get_assignments()
+with db.get_session() as session:
+    version = pd.read_sql(
+        select(db.Version).filter(
+            db.Version.version == DATA_VERSION),
+        session.bind)['id'].values[0].item()
+    languages = pd.read_sql(select(db.Language), session.bind)
+    countries = pd.read_sql(select(db.Country), session.bind)
+    keywords = pd.read_sql(
+        select(db.Keyword).filter(
+            db.Keyword.version_id == version),
+        session.bind)
+    assignments = pd.read_sql(select(db.Assignment), session.bind)
+
 # google trends API connection
 
 SERVER = "https://trends.googleapis.com"
@@ -117,25 +127,46 @@ searchwords.to_sql(
     if_exists='append',
     index=False)
 
-searchwords = db.get_searchwords(version).merge(
-    countries, left_on='country_id', right_on='id')
-# s = df.assign(count=1).groupby(['gb1',
-#                                 'gb2']).agg({'count': 'sum',
-#                                              'text1': lambda x: ','.join(set(x)),
-#                                              'text2': lambda x: ','.join(set(x))}).reset_index()
+with db.get_session() as session:
+    searchwords = pd.read_sql(
+        select(db.Searchword).filter(
+            db.Searchword.version_id == version),
+        session.bind)
 
-responses = searchwords.apply(
+searchwords = searchwords.merge(
+    countries, left_on='country_id', right_on='id')
+
+searchwords['searchword'] = searchwords['searchword'].apply(
+    lambda s: s + ' + ' + rand_str()
+)
+
+responses = pd.concat([d for d in searchwords.apply(
     lambda row: get_response(row['searchword'], row['short']),
     axis=1,
-)
+)], ignore_index=True)
 
-# korrekte response table bauen
-df_responses = (
-    df_responses.merge(
-        df_keywords_country, how="left", left_on="term", right_on="Keyword"
+
+# # korrekte response table bauen
+responses = (
+    responses.merge(
+        searchwords, left_on=['term', 'country'], right_on=['searchword', 'short']
     )
-    .drop(columns=["country", "term"])
-    .rename(columns={"KeywordID": "keyword_id", "Keyword": "keyword"})
-)
+    .drop(columns=['country_x', 'country_y', 'term', 'searchword', 'short', 'keyword_id', 'country_id', 'version_id', 'id_y'])
+    .rename(columns={"id_x": "searchword_id", "Keyword": "keyword"})
 
-# responses zur DB schreiben
+)
+responses.loc[:, 'iteration'] = 1
+responses.loc[:, 'date_of_retrieval'] = datetime.now()
+responses = responses[['searchword_id', 'iteration',
+                       'date', 'value', 'date_of_retrieval']]
+
+responses.to_sql(
+    'd_trends',
+    db.engine,
+    schema='trend',
+    method=db.psql_insert_copy,
+    if_exists='append',
+    index=False)
+
+
+# # responses zur DB schreiben

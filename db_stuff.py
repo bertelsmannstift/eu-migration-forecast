@@ -14,58 +14,60 @@ from sqlalchemy.sql.expression import true
 Base = declarative_base()
 
 
-class Language(Base):
-    __tablename__ = 'l_language'
-    __table_args__ = {"schema": "trend"}
-
-    id = Column(Integer, primary_key=true)
-    short = Column(String)
-    remove_diacritics = Column(Boolean)
-    germany = Column(String)
-
-
-class Keyword(Base):
-    __tablename__ = 'l_keyword'
-    __table_args__ = {"schema": "trend"}
-
-    id = Column(Integer, primary_key=true)
-    keyword_id = Column(Integer)
-    language_id = Column(Integer)
-    version_id = Column(Integer)
-    without_germany = Column(Boolean)
-    keyword = Column(String)
-
-
-class Country(Base):
-    __tablename__ = 'l_country'
-    __table_args__ = {"schema": "trend"}
-
-    id = Column(Integer, primary_key=true)
-    short = Column(String)
-    country = Column(String)
-
-
-class Assignment(Base):
-    __tablename__ = 'a_country_language'
-    __table_args__ = {"schema": "trend"}
-
-    id = Column(Integer, primary_key=true)
-    country_id = Column(Integer)
-    language_id = Column(Integer)
-
-
-class Searchword(Base):
-    __tablename__ = 'd_searchword'
-    __table_args__ = {'schema': 'trend'}
-
-    id = Column(Integer, primary_key=true)
-    country_id = Column(Integer)
-    version_id = Column(Integer)
-    keyword_id = Column(Integer)
-    searchword = Column(String)
-
-
 class db_connector:
+
+    class Version(Base):
+        __tablename__ = 'l_version'
+        __table_args__ = {"schema": "trend"}
+
+        id = Column(Integer, primary_key=true)
+        version = Column(String)
+
+    class Language(Base):
+        __tablename__ = 'l_language'
+        __table_args__ = {"schema": "trend"}
+
+        id = Column(Integer, primary_key=true)
+        short = Column(String)
+        remove_diacritics = Column(Boolean)
+        germany = Column(String)
+
+    class Keyword(Base):
+        __tablename__ = 'l_keyword'
+        __table_args__ = {"schema": "trend"}
+
+        id = Column(Integer, primary_key=true)
+        keyword_id = Column(Integer)
+        language_id = Column(Integer)
+        version_id = Column(Integer)
+        without_germany = Column(Boolean)
+        keyword = Column(String)
+
+    class Country(Base):
+        __tablename__ = 'l_country'
+        __table_args__ = {"schema": "trend"}
+
+        id = Column(Integer, primary_key=true)
+        short = Column(String)
+        country = Column(String)
+
+    class Assignment(Base):
+        __tablename__ = 'a_country_language'
+        __table_args__ = {"schema": "trend"}
+
+        id = Column(Integer, primary_key=true)
+        country_id = Column(Integer)
+        language_id = Column(Integer)
+
+    class Searchword(Base):
+        __tablename__ = 'd_searchword'
+        __table_args__ = {'schema': 'trend'}
+
+        id = Column(Integer, primary_key=true)
+        country_id = Column(Integer)
+        version_id = Column(Integer)
+        keyword_id = Column(Integer)
+        searchword = Column(String)
 
     def __init__(self) -> None:
         self.connection_string = URL.create(
@@ -94,44 +96,8 @@ class db_connector:
         with Session(self.engine) as session:
             return session.execute(stmt).first()
 
-    def get_version_id(self, version):
-        table = Table(
-            'l_version',
-            self.metadata,
-            schema='trend',
-            autoload=True,
-            autoload_with=self.engine
-        )
-
-        stmt = select([table.columns.id]).where(
-            table.columns.version == version)
-        with Session(self.engine) as session:
-            return session.execute(stmt).first()
-
-    def get_languages(self):
-        with Session(self.engine) as session:
-            return pd.read_sql(
-                select(Language), session.bind)
-
-    def get_keywords(self, version):
-        with Session(self.engine) as session:
-            return pd.read_sql(
-                select(Keyword), session.bind)
-
-    def get_countries(self):
-        with Session(self.engine) as session:
-            return pd.read_sql(
-                select(Country), session.bind)
-
-    def get_assignments(self):
-        with Session(self.engine) as session:
-            return pd.read_sql(select(Assignment),
-                               session.bind)
-
-    def get_searchwords(self, version):
-        with Session(self.engine) as session:
-            return pd.read_sql(select(Searchword),
-                               session.bind)
+    def get_session(self) -> Session:
+        return Session(self.engine)
 
     def psql_insert_copy(self, table, conn, keys, data_iter):
         # gets a DBAPI connection that can provide a cursor

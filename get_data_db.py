@@ -60,7 +60,7 @@ def strip_greek_accents(s: str) -> str:
 def get_response(term: str, geo: str) -> DataFrame:
     return pd.DataFrame(
         SERVICE.getGraph(
-            terms=term,
+            terms=term + ' + ' + rand_str(),
             restrictions_startDate=START_DATE,
             restrictions_endDate=END_DATE,
             restrictions_geo=geo,
@@ -140,12 +140,9 @@ def sync_searchwords(searchwords: DataFrame,
 
 
 def get_trends(searchwords: DataFrame, iteration) -> DataFrame:
-    searchwords['searchword'] = searchwords['searchword'].apply(
-        lambda s: s + ' + ' + rand_str()
-    )
-
     responses = pd.concat([d for d in searchwords.apply(
-        lambda row: get_response(row['searchword'], row['short']),
+        lambda row: get_response(
+            row['searchword'], row['short']),
         axis=1,
     )], ignore_index=True)
 
@@ -195,7 +192,7 @@ def main():
         languages)
 
     print('Sync Searchwords...')
-    final_searchwords = sync_searchwords(
+    searchwords = sync_searchwords(
         searchwords,
         countries,
         version)
@@ -203,8 +200,7 @@ def main():
     print('Get Trends...')
     for iteration in range(1, MAX_ITERATION + 1):
         print('Iteration', iteration)
-        get_trends(final_searchwords, iteration)
-        print(final_searchwords['searchword'])
+        get_trends(searchwords, iteration)
 
 
 if __name__ == '__main__':

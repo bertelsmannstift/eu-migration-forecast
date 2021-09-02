@@ -1,3 +1,5 @@
+import logging
+import logging.config
 import random
 import string
 import unicodedata as ud  # greek diacritics only
@@ -11,6 +13,8 @@ from sqlalchemy import select
 from unidecode import unidecode  # to remove diacritics
 
 from db_stuff import db_connector
+
+logging.config.fileConfig('logging.conf')
 
 START_DATE = "2007-01"
 END_DATE = "2020-12"
@@ -170,7 +174,7 @@ def get_trends(searchwords: DataFrame, iteration) -> DataFrame:
 
 
 def main():
-    print('Get Data...')
+    logger.info('Get Data...')
     with DB.get_session() as session:
         version = pd.read_sql(
             select(DB.Version).filter(
@@ -184,24 +188,26 @@ def main():
             session.bind)
         assignments = pd.read_sql(select(DB.Assignment), session.bind)
 
-    print('Prepare Searchwords...')
-
+    logger.info('Prepare Searchwords...')
     searchwords = prepare_searchwords(
         keywords,
         assignments,
         languages)
 
-    print('Sync Searchwords...')
+    logger.info('Sync Searchwords...')
     searchwords = sync_searchwords(
         searchwords,
         countries,
-        version)
+        version).head(5)
 
-    print('Get Trends...')
-    for iteration in range(1, MAX_ITERATION + 1):
-        print('Iteration', iteration)
-        get_trends(searchwords, iteration)
+    # logger.info('Get Trends...')
+    # for iteration in range(1, MAX_ITERATION + 1):
+    #     print('Iteration', iteration)
+    #     get_trends(searchwords, iteration)
 
 
 if __name__ == '__main__':
+    logger = logging.getLogger(__name__)
+    logger.info('Start')
     main()
+    logger.info('Finish')

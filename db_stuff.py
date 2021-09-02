@@ -1,4 +1,5 @@
 import csv
+import logging
 from collections.abc import Iterable, Iterator
 from io import StringIO
 from typing import List
@@ -70,6 +71,8 @@ class db_connector:
         searchword = Column(String)
 
     def __init__(self) -> None:
+        self.logger = logging.getLogger(__name__)
+
         self.connection_string = URL.create(
             drivername='postgresql+psycopg2',
             username='postgres',
@@ -81,25 +84,11 @@ class db_connector:
             self.connection_string)
         self.metadata = MetaData(bind=None)
 
-    def get_language_id(self, language):
-
-        table = Table(
-            'l_language',
-            self.metadata,
-            schema='trend',
-            autoload=True,
-            autoload_with=self.engine
-        )
-
-        stmt = select([table.columns.id]).where(
-            table.columns.short == language)
-        with Session(self.engine) as session:
-            return session.execute(stmt).first()
-
     def get_session(self) -> Session:
         return Session(self.engine)
 
     def psql_insert_copy(self, table, conn, keys, data_iter):
+        self.logger.info('Insert data to %s', table)
         # gets a DBAPI connection that can provide a cursor
         dbapi_conn = conn.connection
         with dbapi_conn.cursor() as cur:
@@ -137,6 +126,7 @@ class db_connector:
         Returns
             Unique list of values from dataframe compared to database table
         """
+        self.logger.info('Clean duplicates in %s', tablename)
         args = 'SELECT %s FROM %s' % (
             ', '.join(['"{0}"'.format(col) for col in dup_cols]), tablename)
         args_contin_filter, args_cat_filter = None, None

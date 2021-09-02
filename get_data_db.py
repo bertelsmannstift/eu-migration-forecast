@@ -202,7 +202,7 @@ def main():
 
     logger.info('Get Trends...')
     for iteration in range(1, MAX_ITERATION + 1):
-        print('Iteration', iteration)
+        logger.info('Iteration %d', iteration)
         get_trends(searchwords, iteration)
 
 

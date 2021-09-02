@@ -5,8 +5,8 @@ from io import StringIO
 from typing import List
 
 import pandas as pd
-from sqlalchemy import (Boolean, Column, Integer, MetaData, String, Table,
-                        create_engine, inspect, select)
+from sqlalchemy import (Boolean, Column, DateTime, Integer, MetaData, String,
+                        Table, create_engine, inspect, select)
 from sqlalchemy.engine import URL
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import Session
@@ -69,6 +69,17 @@ class db_connector:
         version_id = Column(Integer)
         keyword_id = Column(Integer)
         searchword = Column(String)
+
+    class Trend(Base):
+        __tablename__ = 'd_trends'
+        __table_args__ = {'schema': 'trend'}
+
+        id = Column(Integer, primary_key=true)
+        searchword_id = Column(Integer)
+        iteration = Column(Integer)
+        value = Column(Integer)
+        date_of_value = Column(DateTime)
+        date_of_retrieval = Column(DateTime)
 
     def __init__(self) -> None:
         self.logger = logging.getLogger(__name__)

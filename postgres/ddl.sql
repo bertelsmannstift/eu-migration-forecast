@@ -1,3 +1,5 @@
+CREATE SCHEMA IF NOT EXISTS trend;
+CREATE SCHEMA IF NOT EXISTS silver;
 DROP TABLE trend.l_language CASCADE;
 DROP TABLE trend.l_keyword CASCADE;
 DROP TABLE trend.l_version CASCADE;

@@ -51,8 +51,8 @@ CREATE TABLE trend.d_trends (
     id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     searchword_id INT,
     iteration INT,
-    date DATE,
     value INT,
+    date_of_value DATE,
     date_of_retrieval TIMESTAMP,
     CONSTRAINT fk_searchword FOREIGN KEY(searchword_id) REFERENCES trend.d_searchword(id)
 );

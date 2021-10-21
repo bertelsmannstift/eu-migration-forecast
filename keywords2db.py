@@ -4,7 +4,7 @@ from sqlalchemy import select
 
 from db_stuff import db_connector
 
-KEYWORD_FILE = "keywords/keywords-prototype-21-04-22.xlsx"
+KEYWORD_FILE = "data/keywords/keywords-prototype-21-04-22.xlsx"
 DATA_VERSION = "21-04-22"
 
 db = db_connector()

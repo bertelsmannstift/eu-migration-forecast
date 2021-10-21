@@ -17,9 +17,9 @@ from unidecode import unidecode  # to remove diacritics
 START_DATE = "2007-01"
 END_DATE = "2020-12"
 
-KEYWORD_FILE = "keywords/keywords-prototype-21-04-22.xlsx"
-LANGUAGE_ASSIGNMENT_FILE = "keywords/assignment_language_country.json"
-GERMANY_TRANSLATION_FILE = "keywords/germany_language_keywords.json"
+KEYWORD_FILE = "data/keywords/keywords-prototype-21-04-22.xlsx"
+LANGUAGE_ASSIGNMENT_FILE = "data/keywords/assignment_language_country.json"
+GERMANY_TRANSLATION_FILE = "data/keywords/germany_language_keywords.json"
 
 DATA_VERSION = "21-04-22"
 

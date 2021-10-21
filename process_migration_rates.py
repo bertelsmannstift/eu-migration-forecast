@@ -21,7 +21,7 @@ parser.add_argument(
 
 args = parser.parse_args()
 
-DIR = "migration_rates"
+DIR = "data/migration_rates"
 OUTPUT_FILE = "migration_rate_processed.csv"
 COUNTRY_CONFIG_FILE = "countries.json"
 YEAR_CONFIG_FILE = "years.json"

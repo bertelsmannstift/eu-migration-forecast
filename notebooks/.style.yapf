@@ -1,0 +1,9 @@
+[style]
+based_on_style = facebook
+spaces_before_comment = 4
+split_before_logical_operator = true
+split_before_dot = true
+column_limit = 50
+coalesce_brackets = false
+SPLIT_COMPLEX_COMPREHENSION = true
+SPLIT_ALL_TOP_LEVEL_COMMA_SEPARATED_VALUES = true

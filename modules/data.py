@@ -2,85 +2,57 @@
 
 from collections.abc import Callable
 from collections.abc import Iterable
-from typing import Optional
+from typing import Optional, Union, Any
 import json
 import pandas as pd
 import os
 
-from pandas.core.frame import DataFrame
+# from pandas.core.frame import DataFrame
 
-this_dir = os.path.dirname(os.path.realpath(__file__))
+THIS_DIR = os.path.dirname(os.path.realpath(__file__))
+DEFAULT_FILE_MIGRATION = (
+    THIS_DIR + "/../data/migration_rates/migration_rate_processed.csv"
+)
+DEFAULT_FILE_COUNTRIES = THIS_DIR + "/../data/migration_rates/countries.json"
+DEFAULT_DIR_TRENDS = THIS_DIR + "/../data/processed_data"
+DEFAULT_PREFIX_TRENDS = "processed_"
+DEFAULT_FILE_LANG_ASSIGNMENT = (
+    THIS_DIR + "/../data/keywords/assignment_language_country.json"
+)
 
 
-class Dataset:
-    def __init__(self, y: dict[str, pd.Series], x: dict[str, pd.DataFrame]):
-        self.y = y
-        self.x = x
-        assert y.keys() == x.keys()
-        self.countries = y.keys()
-        # TODO: copule of assertions
-
-    def resample(self, freq):
-        x_new = {k: df.resample(freq).mean() for k, df in self.x.items()}
-        y_new = {k: df.resample(freq).mean() for k, df in self.y.items()}
-        return Dataset(y_new, x_new)
-
-    def create_panel(
-        self,
-        x_lags: Iterable[int] = [1],
-        y_lags: Iterable[int] = [1],
-        t_min: str = "2010-12-31",
-        t_max: str = "2019-12-31",
-        add_month_dummies: bool = True,
-        wide: bool = False,
-    ):
-        tmp_dfs = []
-
-        for c in self.countries:
-            tmp_df = self.y[c].rename("y").to_frame().assign(country=c)
-            if add_month_dummies:
-                tmp_df = tmp_df.assign(month=self.y[c].index.month.astype(str))
-            for l in y_lags:
-                tmp_l = self.y[c].shift(l).rename(f"y_{l}")
-                tmp_df = pd.concat([tmp_df, tmp_l], axis=1)
-            for l in x_lags:
-                tmp_l = self.x[c].shift(l).rename(columns=lambda x: x + f"_{l}")
-                tmp_df = pd.concat([tmp_df, tmp_l], axis=1)
-            tmp_dfs.append(tmp_df)
-
-        panel = pd.concat(tmp_dfs).sort_index()[t_min:t_max]
-        if wide:
-            panel = panel.pivot(columns="country")
-        return panel
+def get_countries(country_file: str = DEFAULT_FILE_COUNTRIES):
+    with open(country_file) as buf:
+        countries = list(json.load(buf).keys())
+    return countries
 
 
 def load_migration_rates_from_csv(
-    source_file: str = this_dir + "/../migration_rates/migration_rate_processed.csv",
-    country_file: str = this_dir + "/../migration_rates/countries.json",
+    data_file: str = DEFAULT_FILE_MIGRATION, country_file: str = DEFAULT_FILE_COUNTRIES,
 ) -> dict[str, pd.Series]:
 
-    with open(country_file) as buf:
-        countries = list(json.load(buf).keys())
+    countries = get_countries(country_file)
 
-    df_all = pd.read_csv(source_file, index_col=0, parse_dates=["date"],)
-    df_all.set_index("date", inplace=True)
-    df_all["value"] = pd.to_numeric(df_all["value"], errors="coerce")
+    data = pd.read_csv(data_file, index_col=0, parse_dates=["date"],)
+    data.set_index("date", inplace=True)
+    data["value"] = pd.to_numeric(data["value"], errors="coerce").fillna(0.0)
 
-    for c in countries:
-        df_all.loc[df_all["country"] == c, "value"].fillna(
-            df_all.loc[df_all["country"] == c].mean(), inplace=True
-        )  # fill missing data with mean
+    # fill missing data with mean
+    # for c in countries:
+    #     df_all.loc[df_all["country"] == c, "value"].fillna(
+    #         df_all.loc[df_all["country"] == c].mean(), inplace=True
+    #     )
 
-    data = {c: df_all[df_all.country == c].value for c in countries}
+    # data = {c: df_all[df_all.country == c].value for c in countries}
 
-    return data
+    return data.pivot(columns="country")
 
 
 def get_trends_input_file(
     country: str,
     data_version: str,
-    data_dir: str = this_dir + "/../processed_data",
-    data_file_prefix: str = "processed_",
+    data_dir: str = DEFAULT_DIR_TRENDS,
+    data_file_prefix: str = DEFAULT_PREFIX_TRENDS,
 ) -> str:
 
     directory = os.path.join(data_dir, data_version)
@@ -91,17 +63,11 @@ def get_trends_input_file(
 
 def load_trends_from_csv(
     data_version: str = "21-04-22",
-    lang_assignment_file: str = this_dir
-    + "/../keywords/assignment_language_country.json",
-    country_file: str = this_dir + "/../migration_rates/countries.json",
+    country_file: str = DEFAULT_FILE_COUNTRIES,
     **kwargs,
 ) -> tuple[dict[pd.DataFrame], list[str]]:
 
-    with open(country_file) as buf:
-        countries = list(json.load(buf).keys())
-
-    with open(lang_assignment_file) as f:
-        assignment_language_country = json.load(f)
+    countries = get_countries(country_file)
 
     data = {
         c: pd.read_csv(
@@ -113,53 +79,36 @@ def load_trends_from_csv(
         for c in countries
     }
 
-    return data
+    # return data
+    return (
+        pd.concat(data, axis=1)
+        .swaplevel(axis="columns")
+        .sort_index(axis="columns", level=0)
+    )
 
 
-def transform_panel(
-    df: pd.DataFrame, fcn: Callable, columns: Optional[list] = None
+def create_lags(
+    df: pd.DataFrame,
+    lags: Union[int, Iterable[int]],
+    columns: Optional[Iterable[str]] = None,
 ) -> pd.DataFrame:
-    """ Transform panel data via df.transform() for each country individually"""
+    if columns is None:
+        columns = df.columns
+    if not isinstance(lags, Iterable):
+        lags = [lags]
+    df_list = []
+    for l in lags:
+        df_list.append(
+            df[columns].shift(l).rename(columns=lambda x: x + f"_{l}", level=0)
+        )
+    return pd.concat(df_list, axis="columns")
 
-    tmp_df = df.copy()
 
-    # if single column given
-    if isinstance(columns, str):
-        columns = [columns]
-
-    # long format
-    if "country" in df.columns:
-        countries = df["country"].unique()
-        for c in countries:
-            if columns is None:
-                tmp_df.loc[tmp_df["country"] == c] = tmp_df.loc[
-                    tmp_df["country"] == c
-                ].transform(fcn)
-            else:
-                for col in columns:
-                    tmp_df.loc[tmp_df["country"] == c, col] = tmp_df.loc[
-                        tmp_df["country"] == c, col
-                    ].transform(fcn)
-        return tmp_df
-
-    # wide format
+def stack(X: pd.DataFrame, y: pd.DataFrame, add_column: bool = True):
+    if add_column:
+        X_stacked = X.stack().reset_index(level=1)
     else:
-        if columns is None:
-            return tmp_df.transform(fcn)
-        else:
-            for col in columns:
-                tmp_df[col] = tmp_df[col].transform(fcn)
-            return tmp_df
+        X_stacked = X.stack().droplevel(level=1)
+    y_stacked = y.stack().droplevel(level=1)
+    return X_stacked, y_stacked
 
-
-# %%
-
-# y = load_migration_rates_from_csv()
-# x = load_trends_from_csv()
-# data = Dataset(y, x)
-# panel = data.create_panel()
-# transform_panel
-
-# transform_panel(panel, lambda df:(df - df.shift(1))/df.mean())
-
-# %%

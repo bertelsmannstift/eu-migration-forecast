@@ -104,11 +104,25 @@ def create_lags(
     return pd.concat(df_list, axis="columns")
 
 
-def stack(X: pd.DataFrame, y: pd.DataFrame, add_column: bool = True):
-    if add_column:
-        X_stacked = X.stack().reset_index(level=1)
-    else:
-        X_stacked = X.stack().droplevel(level=1)
-    y_stacked = y.stack().droplevel(level=1)
-    return X_stacked, y_stacked
+# def stack(X: pd.DataFrame, y: pd.DataFrame, add_column: bool = True):
+#     if add_column:
+#         X_stacked = X.stack().reset_index(level=1)
+#     else:
+#         X_stacked = X.stack().droplevel(level=1)
+#     y_stacked = y.stack().droplevel(level=1)
+#     return X_stacked, y_stacked
 
+
+def stack(
+    X: pd.DataFrame,
+    y: pd.DataFrame,
+    extra_column: bool = True,
+    extra_column_name="country",
+):
+    y_stacked = y.stack()
+    X_stacked = X.stack()
+    if extra_column:
+        new_col_dict = {extra_column_name: X_stacked.index.get_level_values(1)}
+        X_stacked = X_stacked.assign(**new_col_dict)
+        # X_stacked = X_stacked.assign(country=X_stacked.index.get_level_values(1))
+    return X_stacked, y_stacked

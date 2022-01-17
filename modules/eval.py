@@ -1,11 +1,8 @@
-from os import stat
-from numpy import string_
 from sklearn.model_selection import cross_validate
 from sklearn.metrics import get_scorer, make_scorer
 from sklearn import metrics
 import pandas as pd
 import matplotlib.pyplot as plt
-import warnings
 import numpy as np
 
 
@@ -27,7 +24,6 @@ scorer_ev = make_scorer(
 )
 scorer_r2 = make_scorer(metrics.r2_score, multioutput="variance_weighted")
 scorer_r2_mod = make_scorer(r2_mod)
-
 
 DEFAULT_SCORING = {
     "mae": scorer_mae,
@@ -95,7 +91,7 @@ def score_cv_countries(
 def agg_cv_scores(
     scores_all,
     use_quantiles=False,
-    agg_arg=["mean", "std"],
+    agg_arg=["mean", "std", "sem"],
     quantiles=[0.25, 0.5, 0.75],
     level=None,
 ):
@@ -105,23 +101,44 @@ def agg_cv_scores(
         obj = scores_all.groupby(level=level)
 
     if use_quantiles:
-        return obj.quantile(quantiles).unstack()
+        tmp_df = obj.quantile(quantiles).unstack()
+        if level is None:
+            tmp_df = tmp_df.unstack()
     else:
-        return obj.agg(agg_arg)
+        tmp_df = obj.agg(agg_arg)
+        if level is None:
+            tmp_df = tmp_df.transpose()
+
+    return tmp_df
 
 
 def plot_panel(
-    df, n_rows=7, n_cols=4, figsize=(25, 25), countries=None, autoscale=True
+    df,
+    n_rows=7,
+    n_cols=4,
+    figsize=(25, 25),
+    countries=None,
+    global_autoscale=False,
+    t_min=None,
+    t_max=None,
+    y_min=None,
+    y_max=None,
+    vline=None,
 ):
     if countries is None:
         countries = df.columns.levels[1].to_list()
     fig, axs = plt.subplots(n_rows, n_cols, figsize=figsize)
+    y_lim = None
+    if global_autoscale:
+        y_lim = (min(df.min()) * 1.2, max(df.max()) * 1.2)
+    if y_min is not None and y_max is not None:
+        y_lim = (y_min, y_max)
     for c, ax in zip(countries, axs.flatten()):
-        sub_df = df.xs(c, level=1, axis="columns")
-        if autoscale is not None:
-            y_max = max([sub_df[col].max() for col in sub_df.columns])
-            y_min = min([sub_df[col].min() for col in sub_df.columns])
-        sub_df.plot(ax=ax, ylim=(y_min * 1.2, y_max * 1.2) if autoscale else None)
+        sub_df = df.xs(c, level=1, axis="columns")[t_min:t_max]
+        sub_df.plot(ax=ax, ylim=y_lim)
+        if vline is not None:
+            ymin, ymax = ax.get_ylim()
+            ax.vlines(vline, ymin, ymax, color="gray", linestyles="dashed")
         ax.set_title(c)
     fig.tight_layout()
     return fig, axs

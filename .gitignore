@@ -1,4 +1,6 @@
 .vscode/
+.mlflow/
 ~*
 *.log
 *.pyc
+__pycache__

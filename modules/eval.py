@@ -134,7 +134,7 @@ def plot_panel(
     if y_min is not None and y_max is not None:
         y_lim = (y_min, y_max)
     for c, ax in zip(countries, axs.flatten()):
-        sub_df = df.xs(c, level=1, axis="columns")[t_min:t_max]
+        sub_df = df.xs(c, level=1, axis="columns")[t_min:t_max].dropna()
         sub_df.plot(ax=ax, ylim=y_lim)
         if vline is not None:
             ymin, ymax = ax.get_ylim()

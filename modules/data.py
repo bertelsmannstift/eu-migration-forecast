@@ -35,7 +35,7 @@ def load_migration_rates_from_csv(
 
     data = pd.read_csv(data_file, index_col=0, parse_dates=["date"],)
     data.set_index("date", inplace=True)
-    data["value"] = pd.to_numeric(data["value"], errors="coerce").fillna(0.0)
+    data["value"] = pd.to_numeric(data["value"], errors="coerce")
 
     # fill missing data with mean
     # for c in countries:

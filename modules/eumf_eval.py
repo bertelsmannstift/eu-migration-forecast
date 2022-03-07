@@ -1,3 +1,5 @@
+""" Forecast evaluation """
+
 from sklearn.model_selection import cross_validate
 from sklearn.metrics import get_scorer, make_scorer
 from sklearn import metrics
@@ -18,7 +20,6 @@ scorer_mae = make_scorer(metrics.mean_absolute_error, greater_is_better=False)
 scorer_rmse = make_scorer(
     metrics.mean_squared_error, greater_is_better=False, squared=False
 )
-
 scorer_ev = make_scorer(
     metrics.explained_variance_score, multioutput="variance_weighted"
 )
@@ -32,6 +33,8 @@ DEFAULT_SCORING = {
     "r2_mod": scorer_r2_mod,
 }
 
+DEFAULT_SCORING_MULTICLS = ["f1_micro", "f1_macro", "f1_weighted"]
+
 
 def score_cv(reg, X, y, scoring=DEFAULT_SCORING, **kwargs):
     scores = cross_validate(reg, X=X, y=y, scoring=scoring, **kwargs)
@@ -39,7 +42,10 @@ def score_cv(reg, X, y, scoring=DEFAULT_SCORING, **kwargs):
 
 
 def score_test(reg, X, y, scoring=DEFAULT_SCORING):
-    scores = {k: s(reg, X, y) for k, s in scoring.items()}
+    if hasattr(scoring, "items"):
+        scores = {k: scorer(reg, X, y) for k, scorer in scoring.items()}
+    else:
+        scores = {k: get_scorer(k)(reg, X, y) for k in scoring}
     return pd.Series(scores)
 
 
@@ -113,9 +119,9 @@ def agg_cv_scores(
 
 
 def plot_panel(
-    df,
-    n_rows=7,
-    n_cols=4,
+    df: pd.DataFrame,
+    n_rows: int = 7,
+    n_cols: int = 4,
     figsize=(25, 25),
     countries=None,
     global_autoscale=False,

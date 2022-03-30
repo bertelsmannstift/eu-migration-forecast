@@ -7,13 +7,13 @@ import json
 
 
 DATA_VERSION = "21-04-22"
-files = glob.glob(f"data/raw_data/{DATA_VERSION}/*.csv")
+files = glob.glob(f"data/raw/trends/{DATA_VERSION}/*.csv")
 
-LANGUAGE_ASSIGNMENT_FILE = "data/keywords/assignment_language_country.json"
+LANGUAGE_ASSIGNMENT_FILE = "data/config/assignment_language_country.json"
 
 
 def get_output_file(country: str) -> str:
-    directory = f"data/processed_data/{DATA_VERSION}"
+    directory = f"data/processed/trends/{DATA_VERSION}"
     if not os.path.exists(directory):
         os.makedirs(directory)
     return os.path.join(directory, f"processed_{country}.csv")
@@ -34,7 +34,7 @@ for c in countries:
 
     print(c + "\n")
 
-    files = glob.glob(f"data/raw_data/{DATA_VERSION}/data_{c}_*.csv")
+    files = glob.glob(f"data/raw/trends/{DATA_VERSION}/data_{c}_*.csv")
 
     # read df from each file and concatenate
     df = pd.concat([pd.read_csv(f, index_col=0, parse_dates=[2]) for f in files])

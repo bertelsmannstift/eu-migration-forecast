@@ -1,4 +1,4 @@
-""" Data import and basic manipulation """
+""" Data import and basic preprocessing/cleaning """
 
 #%%
 
@@ -6,6 +6,7 @@ from collections.abc import Callable
 from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import Optional, Union, Any
+from sklearn import impute
 import json
 import numpy as np
 import pandas as pd
@@ -14,18 +15,22 @@ import os
 # from pandas.core.frame import DataFrame
 
 THIS_DIR = os.path.dirname(os.path.realpath(__file__))
-DEFAULT_FILE_MIGRATION = (
-    THIS_DIR + "/../data/migration_rates/migration_rate_processed.csv"
+DEFAULT_FILE_REGISTRATIONS = (
+    THIS_DIR + "/../../data/processed/registrations/registrations_processed.csv"
 )
-DEFAULT_FILE_COUNTRIES = THIS_DIR + "/../data/migration_rates/countries.json"
-DEFAULT_DIR_TRENDS = THIS_DIR + "/../data/processed_data"
+DEFAULT_FILE_COUNTRIES = (
+    THIS_DIR + "/../../data/config/country_names_registrations.json"
+)
+DEFAULT_DIR_TRENDS = THIS_DIR + "/../../data/processed/trends"
 DEFAULT_PREFIX_TRENDS = "processed_"
 DEFAULT_FILE_LANG_ASSIGNMENT = (
-    THIS_DIR + "/../data/keywords/assignment_language_country.json"
+    THIS_DIR + "/../../data/config/assignment_language_country.json"
 )
-DEFAULT_FILE_COUNTRY_NAMES = THIS_DIR + "/../data/macroeconomics/country_names.json"
-DEFAULT_FILE_GDP = THIS_DIR + "/../data/macroeconomics/GDP_pc_quart.xls"
-DEFAULT_FILE_UNEMPL = THIS_DIR + "/../data/macroeconomics/Unemployment_Rate_Quart.xlsx"
+DEFAULT_FILE_COUNTRYNAMES_EUROSTAT = (
+    THIS_DIR + "/../../data/config/country_names_eurostat.json"
+)
+DEFAULT_FILE_GDP = THIS_DIR + "/../../data/raw/eurostat/GDP_pc_quart.xls"
+DEFAULT_FILE_UNEMPL = THIS_DIR + "/../../data/raw/eurostat/Unemployment_Rate_Quart.xlsx"
 
 DEFAULT_COUNTRY_COMBINATIONS = [
     ["GR", "CY"],
@@ -42,25 +47,26 @@ def get_countries(country_file: str = DEFAULT_FILE_COUNTRIES):
     return countries
 
 
-def load_migration_rates_from_csv(
-    data_file: str = DEFAULT_FILE_MIGRATION, country_file: str = DEFAULT_FILE_COUNTRIES,
+def load_registrations_from_csv(
+    data_file: str = DEFAULT_FILE_REGISTRATIONS,
+    # country_file: str = DEFAULT_FILE_COUNTRIES,
+    impute_missing: bool = False,
+    imputer_n_neighbors: int = 3,
 ) -> dict[str, pd.Series]:
 
-    countries = get_countries(country_file)
+    # countries = get_countries(country_file)
 
     data = pd.read_csv(data_file, index_col=0, parse_dates=["date"],)
     data.set_index("date", inplace=True)
     data["value"] = pd.to_numeric(data["value"], errors="coerce")
+    data = data.pivot(columns="country")
 
-    # fill missing data with mean
-    # for c in countries:
-    #     df_all.loc[df_all["country"] == c, "value"].fillna(
-    #         df_all.loc[df_all["country"] == c].mean(), inplace=True
-    #     )
+    if impute_missing:
+        imputer = impute.KNNImputer(n_neighbors=imputer_n_neighbors)
+        imputed = imputer.fit_transform(data.to_numpy())
+        data = pd.DataFrame(imputed, index=data.index, columns=data.columns)
 
-    # data = {c: df_all[df_all.country == c].value for c in countries}
-
-    return data.pivot(columns="country")
+    return data
 
 
 def get_trends_input_file(
@@ -149,6 +155,13 @@ def stack_labeled(
     return stacked
 
 
+def discretize_labeled(
+    data: Labeled, bins: Iterable[float], classes: Iterable,
+):
+    data_tmp = data.copy()
+    data_tmp.y = pd.cut(data_tmp.y, bins, labels=classes)
+    return data_tmp
+
 def stack(
     X: pd.DataFrame,
     y: pd.DataFrame,
@@ -166,7 +179,7 @@ def stack(
 
 def read_gdp(
     filename: str = DEFAULT_FILE_GDP,
-    country_name_file: str = DEFAULT_FILE_COUNTRY_NAMES,
+    country_name_file: str = DEFAULT_FILE_COUNTRYNAMES_EUROSTAT,
     skiprows: int = 10,
     nrows: int = 38,
 ) -> pd.DataFrame:
@@ -202,7 +215,7 @@ def read_gdp(
 
 def read_unempl(
     filename: str = DEFAULT_FILE_UNEMPL,
-    country_name_file: str = DEFAULT_FILE_COUNTRY_NAMES,
+    country_name_file: str = DEFAULT_FILE_COUNTRYNAMES_EUROSTAT,
     skiprows: int = 10,
     nrows: int = 29,
 ) -> pd.DataFrame:
@@ -256,4 +269,3 @@ def combine_countries(
     panel_combined = panel_swap.swaplevel(0, 1, axis=1)
 
     return panel_combined
-

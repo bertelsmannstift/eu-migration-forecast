@@ -1,10 +1,8 @@
 import pandas as pd
 import json
 import datetime as dt
-import warnings
+from tqdm import tqdm
 import os
-import sys
-import glob
 import argparse
 
 parser = argparse.ArgumentParser(
@@ -12,19 +10,25 @@ parser = argparse.ArgumentParser(
 )
 
 parser.add_argument(
-    "--year", "-y", type=int, help="year used (default: all in years.json)"
+    "--year",
+    "-y",
+    type=int,
+    help="Year used (default: all in years.json). "
+    "Existing years will be replaced in the output file.",
 )
 
 parser.add_argument(
-    "--reset", "-r", action="store_true", help="delete ouput file before reading"
+    "--reset", "-r", action="store_true", help="Delete ouput file before reading."
 )
 
 args = parser.parse_args()
 
-DIR = "data/migration_rates"
-OUTPUT_FILE = "migration_rate_processed.csv"
-COUNTRY_CONFIG_FILE = "countries.json"
-YEAR_CONFIG_FILE = "years.json"
+INPUT_DIR = "data/raw/registrations"
+OUTPUT_DIR = "data/processed/registrations"
+CONFIG_DIR = "data/config"
+OUTPUT_FILE = "registrations_processed.csv"
+COUNTRY_CONFIG_FILE = "country_names_registrations.json"
+YEAR_CONFIG_FILE = "years_registrations.json"
 
 MONTHS = {
     1: "Januar",
@@ -41,10 +45,10 @@ MONTHS = {
     12: "Dezember",
 }
 
-with open(os.path.join(DIR, COUNTRY_CONFIG_FILE)) as buf:
+with open(os.path.join(CONFIG_DIR, COUNTRY_CONFIG_FILE)) as buf:
     countries = json.load(buf)
 
-with open(os.path.join(DIR, YEAR_CONFIG_FILE)) as buf:
+with open(os.path.join(CONFIG_DIR, YEAR_CONFIG_FILE)) as buf:
     year_configs = json.load(buf)
 
 if args.year is not None:
@@ -58,7 +62,7 @@ else:
 
 if args.reset:
     try:
-        os.remove(os.path.join(DIR, OUTPUT_FILE))
+        os.remove(os.path.join(OUTPUT_DIR, OUTPUT_FILE))
     except:
         pass
 
@@ -71,7 +75,7 @@ for key, conf in selected_configs.items():
 
     # read existing output file, otherwise create new df
     try:
-        data = pd.read_csv(os.path.join(DIR, OUTPUT_FILE), index_col=0)
+        data = pd.read_csv(os.path.join(OUTPUT_DIR, OUTPUT_FILE), index_col=0)
     except:
         data = pd.DataFrame(columns=["date", "country", "value"])
 
@@ -80,30 +84,40 @@ for key, conf in selected_configs.items():
     # remove all entries from given year if existing
     data = data[data["date"].dt.year != y]
 
-    for m, m_name in MONTHS.items():
-
-        print(m_name)
+    for m, m_name in tqdm(MONTHS.items(), desc=key):
 
         date = dt.datetime(y, m, 1)
         df_tmp = pd.read_excel(
-            os.path.join(DIR, conf["filename"]),
+            os.path.join(INPUT_DIR, conf["filename"]),
             sheet_name=m_name,
             usecols=usecols,
             skiprows=2,
             nrows=172,
         )
-
         df_tmp.columns = ["country", "value"]
 
+        if "correction_filename" in conf.keys():
+            df_corr = pd.read_excel(
+                os.path.join(INPUT_DIR, conf["correction_filename"]),
+                sheet_name=m_name,
+                usecols=usecols,
+                skiprows=2,
+                nrows=172,
+            )
+            df_corr.columns = ["country", "value"]
+        else:
+            df_corr = None
+
         for c, c_name in countries.items():
-            try:
-                value = df_tmp[df_tmp["country"] == c_name]["value"].iloc[0]
-            except:
-                warnings.warn(f"No data for country {c_name}")
-                continue
+            cond = df_tmp["country"].str.contains(c_name, na=False)
+            values = df_tmp[cond]["value"].iloc[0]
+            if df_corr is not None:
+                corrections = df_corr[cond]["value"].iloc[0]
+                # values = values.astype(float) - corrections.astype(float)
+                values -= corrections
 
             data = data.append(
-                {"date": date, "country": c, "value": value}, ignore_index=True
+                {"date": date, "country": c, "value": values}, ignore_index=True
             )
 
-    data.sort_values(by="date").to_csv(os.path.join(DIR, OUTPUT_FILE))
+    data.sort_values(by="date").to_csv(os.path.join(OUTPUT_DIR, OUTPUT_FILE))

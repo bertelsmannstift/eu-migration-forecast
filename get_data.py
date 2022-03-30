@@ -18,8 +18,8 @@ START_DATE = "2007-01"
 END_DATE = "2020-12"
 
 KEYWORD_FILE = "data/keywords/keywords-prototype-21-04-22.xlsx"
-LANGUAGE_ASSIGNMENT_FILE = "data/keywords/assignment_language_country.json"
-GERMANY_TRANSLATION_FILE = "data/keywords/germany_language_keywords.json"
+LANGUAGE_ASSIGNMENT_FILE = "data/config/assignment_language_country.json"
+GERMANY_TRANSLATION_FILE = "data/config/germany_language_keywords.json"
 
 DATA_VERSION = "21-04-22"
 
@@ -28,7 +28,7 @@ ITERATION = sys.argv[1] if len(sys.argv) > 1 else 0
 
 
 def get_output_file(country: str) -> str:
-    directory = f"raw_data/{DATA_VERSION}"
+    directory = f"data/raw/trends/{DATA_VERSION}"
     if not os.path.exists(directory):
         os.makedirs(directory)
     return os.path.join(directory, f"data_{country}_{ITERATION}.csv")

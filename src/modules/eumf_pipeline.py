@@ -1,11 +1,14 @@
 """ Functions to build the data pipeline for the forecast """
 
 
+from distutils.command import register
+
+from matplotlib.cm import register_cmap
 from eumf_data import Labeled
 from sklearn import model_selection
 import eumf_data
 import numpy as np
-from typing import Optional, Union
+from typing import Iterable, Optional, Union
 import pandas as pd
 from sklearn import compose, preprocessing, ensemble, pipeline
 
@@ -17,15 +20,13 @@ LabeledTuple = tuple[Labeled, Labeled]
 
 def prepare_data(
     panel: pd.DataFrame,
-    columns: list = ["19"],
+    columns: Optional[Iterable] = None,
     lags=[1, 2, 3, 4],
-    t_min="2011",
+    t_min="2009",
     t_max="2019",
 ) -> Labeled:
 
-    panel_lags = eumf_data.create_lags(panel, lags=lags, columns=columns).fillna(
-        0.0
-    )
+    panel_lags = eumf_data.create_lags(panel, lags=lags, columns=columns).fillna(0.0)
 
     # define x, y; set minimum value
     x = panel_lags.applymap(lambda x: max(x, 0.1))
@@ -43,6 +44,12 @@ def transform_data(data_in: Labeled, delta=4) -> Labeled:
     return Labeled(x.iloc[delta:], y.iloc[delta:])
 
 
+def inv_transform_y(
+    y_transformed: pd.DataFrame, y_real: pd.DataFrame, delta=4
+) -> pd.DataFrame:
+    return np.exp(y_transformed) * y_real.shift(delta)
+
+
 def split_data(
     data_in: Labeled, t_test_min="2018-01-01", t_test_max="2019-12-01",
 ) -> LabeledTuple:
@@ -54,7 +61,6 @@ def split_data(
 
     # train = data_in[t_min:t_split_lower]
     # test = data_in[t_split_upper:t_max]
-
     test = data_in[t_test_min:t_test_max]
     train = Labeled(data_in.x.drop(test.index), data_in.y.drop(test.index))
     # train = data_in.apply(lambda df: df.drop(test.index))
@@ -63,15 +69,15 @@ def split_data(
 
 
 def stack_data(
-    train: Labeled, test: Optional[Labeled] = None
+    train: Labeled, test: Optional[Labeled] = None, **kwargs
 ) -> Union[LabeledTuple, Labeled]:
     # stacking
     if test is None:
-        train = eumf_data.stack_labeled(train)
+        train = eumf_data.stack_labeled(train, **kwargs)
         return train
     else:
-        train = eumf_data.stack_labeled(train)
-        test = eumf_data.stack_labeled(test)
+        train = eumf_data.stack_labeled(train, **kwargs)
+        test = eumf_data.stack_labeled(test, **kwargs)
         return train, test
 
 
@@ -108,6 +114,39 @@ def train_cls_model(
         cls = ensemble.RandomForestClassifier(random_state=1)
 
     model = pipeline.make_pipeline(ct, cls)
+
+    hptuner = model_selection.GridSearchCV(
+        model, params, cv=cv, scoring=scoring, n_jobs=-1,
+    )
+    hptuner.fit(train.x, train.y)
+
+    return hptuner
+
+
+def train_reg_model(
+    train: Labeled,
+    reg=ensemble.RandomForestRegressor(random_state=1),
+    dummy_cols=["country"],
+    dummy_encoder=preprocessing.OneHotEncoder(),
+    extra_column_transformer_steps: Iterable = [],
+    extra_pipeline_steps: Iterable = [],
+    cv=cv_default,
+    params={},
+    scoring="neg_mean_squared_error",
+) -> model_selection.GridSearchCV:
+
+    ct_steps = [(dummy_encoder, dummy_cols)]
+
+    ct_steps += extra_column_transformer_steps
+
+    ct = compose.make_column_transformer(
+        *ct_steps,
+        remainder="passthrough",
+        sparse_threshold=0,
+        verbose_feature_names_out=False,
+    )
+
+    model = pipeline.make_pipeline(ct, *extra_pipeline_steps, reg)
 
     hptuner = model_selection.GridSearchCV(
         model, params, cv=cv, scoring=scoring, n_jobs=-1,

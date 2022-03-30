@@ -1,4 +1,6 @@
 {
+    "2008": {"filename": "2008.xls", "usecols": [0, 6]},
+    "2009": {"filename": "2009.xls", "usecols": [1, 3], "correction_filename": "2009_correction.xls"},
     "2010": {"filename": "2010.xls", "usecols": [0, 6]},
     "2011": {"filename": "2011.xls", "usecols": [0, 6]},
     "2012": {"filename": "2012.xls", "usecols": [0, 6]},

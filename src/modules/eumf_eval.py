@@ -304,6 +304,7 @@ def cv_performance_plot(
     test_scores: Optional[Iterable[pd.DataFrame]] = None,
     test_pos: Optional[int] = None,
     test_vspan: bool = True,
+    benchmark_indices: Optional[Iterable[int]] = None,
     **kwargs,
 ) -> plt.Axes:
 
@@ -327,7 +328,12 @@ def cv_performance_plot(
         else:
             df_tmp = cv_scores[i]["test_" + metric]
 
-        ax = df_tmp.plot(label=str(run_labels[i]), marker="o", linestyle=":", **kwargs)
+        ax = df_tmp.plot(
+            label=str(run_labels[i]),
+            marker="o" if i not in benchmark_indices else "",
+            linestyle="-" if i not in benchmark_indices else ":",
+            **kwargs,
+        )
 
         if test_vspan and test_scores is not None:
             ax.axvspan(test_pos - 0.5, test_pos + 0.5, color="lightgrey")

@@ -21,12 +21,15 @@ LabeledTuple = tuple[Labeled, Labeled]
 def prepare_data(
     panel: pd.DataFrame,
     columns: Optional[Iterable] = None,
-    lags=[1, 2, 3, 4],
+    lags: Iterable[int] = [1, 2, 3, 4],
+    alternate_lags: dict[str, Iterable[int]] = {},
     t_min="2009",
     t_max="2019",
 ) -> Labeled:
 
-    panel_lags = eumf_data.create_lags(panel, lags=lags, columns=columns).fillna(0.0)
+    panel_lags = eumf_data.create_lags(
+        panel, lags=lags, columns=columns, alternate_lags=alternate_lags
+    ).fillna(0.0)
 
     # define x, y; set minimum value
     x = panel_lags.applymap(lambda x: max(x, 0.1))
@@ -35,11 +38,18 @@ def prepare_data(
     return Labeled(x, y)[t_min:t_max]
 
 
-def transform_data(data_in: Labeled, delta=4) -> Labeled:
+def transform_data(data_in: Labeled, delta=4, logy=True, logx=True, eps_x=0.0) -> Labeled:
     # transformation: logdiff
 
-    x = np.log(data_in.x) - np.log(data_in.x.shift(delta))
-    y = np.log(data_in.y) - np.log(data_in.y.shift(delta))
+    if logx:
+        x = np.log(data_in.x + eps_x) - np.log(data_in.x.shift(delta) + eps_x)
+    else:
+        x = data_in.x - data_in.x.shift(delta)
+
+    if logy:
+        y = np.log(data_in.y) - np.log(data_in.y.shift(delta))
+    else:
+        y = data_in.y - data_in.y.shift(delta)
 
     return Labeled(x.iloc[delta:], y.iloc[delta:])
 

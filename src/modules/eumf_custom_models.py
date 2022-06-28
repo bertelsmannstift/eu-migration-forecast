@@ -1,8 +1,9 @@
 """ Custom sklearn-models """
 
 import numpy as np
-from sklearn import linear_model, pipeline, compose
+from sklearn import linear_model, pipeline, compose, base
 from typing import Optional, Iterable
+import pandas as pd
 
 from eumf_data import Labeled
 
@@ -51,9 +52,24 @@ class LinearDummyModel(linear_model.LinearRegression):
         # raise NotImplementedError("model is only for prediction")
 
 
+# class PredefinedDummyClassifier(base.BaseEstimator, base.ClassifierMixin):
+
+#     def __init__(self):
+#         None
+    
+#     def fit(self, X, y):
+#         None
+    
+#     def predict(self, X, y):
+#         return X
+
+#     def predict_proba(self, X, y):
+#         return pd.get_dummies(X).to_numpy()
+
+
 def make_linear_dummy_model(
     data: Labeled,
-    features: Iterable = ["value_1"],
+    features: Iterable,
     coef: Optional[Iterable[float]] = [1.0],
     intercept: Optional[Iterable[float]] = None,
 ):

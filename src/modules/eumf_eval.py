@@ -9,21 +9,29 @@ from sklearn import metrics, base
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
-
+from scipy.stats import wasserstein_distance
 from eumf_data import Labeled, stack_labeled, discretize_labeled
 from typing import Optional, Iterable, Tuple, Union
 from numpy.typing import ArrayLike
 
 
-def r2_mod(y_true, y_pred, *, y_mean=0.0):
+def r2_mod(y_true, y_pred, *arg, y_base=0.0):
     """Modified R2 for OOS evaluation where mean is 0"""
 
     num = ((y_true - y_pred) ** 2).sum()
-    denom = ((y_true - y_mean) ** 2).sum()
+    denom = ((y_true - y_base) ** 2).sum()
     return 1 - num / denom
 
 
-def rmse_weighted(y_true, y_pred, *, factor=1.0):
+def delta_mae(y_true, y_pred, *arg, y_base=0.0):
+    """Modified R2 for OOS evaluation where mean is 0"""
+
+    sae = np.abs(y_true - y_pred)
+    sae_base = np.abs(y_true - y_base)
+    return (sae_base.sum() - sae.sum()) / len(y_true)
+
+
+def rmse_weighted(y_true, y_pred, *arg, factor=1.0):
     se = (y_true - y_pred) ** 2
     weights = np.exp(np.abs(y_true * factor))
     return np.sqrt(np.sum(se * weights))
@@ -38,13 +46,16 @@ scorer_ev = make_scorer(
 )
 scorer_r2 = make_scorer(metrics.r2_score, multioutput="variance_weighted")
 scorer_r2_mod = make_scorer(r2_mod)
+scorer_delta_mae = make_scorer(delta_mae, greater_is_better=True)
 
+scorer_emd = make_scorer(wasserstein_distance, greater_is_better=False)
 
 DEFAULT_SCORING = {
     "mae": scorer_mae,
     "rmse": scorer_rmse,
     "explained_variance": scorer_ev,
     "r2_mod": scorer_r2_mod,
+    "delta_mae": scorer_delta_mae,
 }
 
 DEFAULT_SCORING_MULTICLS = ["f1_micro", "f1_macro", "f1_weighted"]
@@ -60,6 +71,45 @@ DEFAULT_SCORING_MULTICLS = ["f1_micro", "f1_macro", "f1_weighted"]
 #     else:
 #         scores = {k: get_scorer(k)(reg, X, y) for k in scoring}
 #     return pd.Series(scores)
+
+
+class BlockKFold:
+    def __init__(self, n_splits: int, margin: Optional[Union[int, float]] = None):
+        if isinstance(n_splits, int):
+            self.n_splits = n_splits
+        else:
+            raise ValueError("n_splits must be integer")
+        if isinstance(margin, int) or isinstance(margin, float) or margin is None:
+            self.margin = margin
+        else:
+            raise ValueError("margin must me int or float")
+
+    def get_n_splits(self, X, y, groups):
+        return self.n_splits
+
+    def split(self, X, y=None, groups=None):
+        n_samples = len(X)
+        k_fold_size = n_samples // self.n_splits
+        indices = list(range(n_samples))
+
+        if self.margin is None:
+            margin = 0
+        if isinstance(self.margin, int):
+            margin = self.margin
+        elif isinstance(self.margin, float):
+            margin = int(n_samples / self.n_splits * self.margin)
+
+        for i in range(self.n_splits):
+            start = i * k_fold_size
+            stop = start + k_fold_size
+
+            test = indices[start:stop]
+            train1 = indices[:start]
+            train2 = (
+                indices[stop + margin :] if stop + margin < n_samples else []
+            )
+
+            yield train1 + train2, test
 
 
 def score_cv(est: base.BaseEstimator, data: Labeled, scoring=DEFAULT_SCORING, **kwargs):
@@ -220,11 +270,15 @@ def agg_cv_scores(
     agg_arg=["mean", "std", "sem"],
     quantiles=[0.25, 0.5, 0.75],
     level=None,
+    folds=None,
 ):
     if level is None:
         obj = scores_all
     else:
         obj = scores_all.groupby(level=level)
+
+    if folds is not None:
+        obj=obj.iloc[folds]
 
     if use_quantiles:
         tmp_df = obj.quantile(quantiles).unstack()
@@ -279,6 +333,11 @@ def plot_prediction(y_pred: pd.DataFrame, y_true: pd.DataFrame, **kwargs):
     return plot_panel(df_pred, **kwargs)
 
 
+def plot_predictions(y_preds: dict[pd.DataFrame], y_true: pd.DataFrame, **kwargs):
+    df_pred = pd.concat({**{"true": y_true}, **y_preds}, axis="columns")
+    return plot_panel(df_pred, **kwargs)
+
+
 def agg_multiple_cv_scores(scores: list, labels: list, **kwargs):
     return pd.concat(
         {
@@ -301,10 +360,11 @@ def cv_performance_plot(
     indices: Optional[Iterable[int]] = None,
     fold_labels: Optional[Iterable] = None,
     run_labels: Optional[Iterable] = None,
+    plot_labels: Optional[Iterable[str]] = None,
     test_scores: Optional[Iterable[pd.DataFrame]] = None,
     test_pos: Optional[int] = None,
     test_vspan: bool = True,
-    benchmark_indices: Optional[Iterable[int]] = None,
+    benchmark_indices: Iterable[int] = [],
     **kwargs,
 ) -> plt.Axes:
 
@@ -314,7 +374,7 @@ def cv_performance_plot(
     if run_labels is None:
         run_labels = indices
 
-    for i in indices:
+    for k, i in enumerate(indices):
         if test_scores is not None:
             if test_pos is None:
                 test_pos = len(cv_scores[i])
@@ -328,8 +388,16 @@ def cv_performance_plot(
         else:
             df_tmp = cv_scores[i]["test_" + metric]
 
+        label = (
+            plot_labels[k]
+            if plot_labels is not None
+            else str(run_labels[i])
+            if run_labels is not None
+            else None
+        )
+
         ax = df_tmp.plot(
-            label=str(run_labels[i]),
+            label=label,
             marker="o" if i not in benchmark_indices else "",
             linestyle="-" if i not in benchmark_indices else ":",
             **kwargs,

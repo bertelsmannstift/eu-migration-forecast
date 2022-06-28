@@ -32,14 +32,6 @@ DEFAULT_FILE_COUNTRYNAMES_EUROSTAT = (
 DEFAULT_FILE_GDP = THIS_DIR + "/../../data/raw/eurostat/GDP_pc_quart.xls"
 DEFAULT_FILE_UNEMPL = THIS_DIR + "/../../data/raw/eurostat/Unemployment_Rate_Quart.xlsx"
 
-DEFAULT_COUNTRY_COMBINATIONS = [
-    ["GR", "CY"],
-    ["LV", "LT", "EE"],
-    ["BE", "NL", "LU"],
-    ["CZ", "SK"],
-    ["SE", "FI"],
-]
-
 
 def get_countries(country_file: str = DEFAULT_FILE_COUNTRIES):
     with open(country_file) as buf:
@@ -49,9 +41,9 @@ def get_countries(country_file: str = DEFAULT_FILE_COUNTRIES):
 
 def load_registrations_from_csv(
     data_file: str = DEFAULT_FILE_REGISTRATIONS,
-    # country_file: str = DEFAULT_FILE_COUNTRIES,
     impute_missing: bool = False,
     imputer_n_neighbors: int = 3,
+    countries: Optional[Iterable[str]] = None,
 ) -> dict[str, pd.Series]:
 
     # countries = get_countries(country_file)
@@ -59,6 +51,10 @@ def load_registrations_from_csv(
     data = pd.read_csv(data_file, index_col=0, parse_dates=["date"],)
     data.set_index("date", inplace=True)
     data["value"] = pd.to_numeric(data["value"], errors="coerce")
+
+    if countries is not None:
+        data = data[data["country"].isin(countries)]
+
     data = data.pivot(columns="country")
 
     if impute_missing:
@@ -84,11 +80,14 @@ def get_trends_input_file(
 
 def load_trends_from_csv(
     data_version: str = "21-04-22",
-    country_file: str = DEFAULT_FILE_COUNTRIES,
+    countries: Optional[Iterable[str]] = None,
+    default_country_file: str = DEFAULT_FILE_COUNTRIES,
     **kwargs,
 ) -> tuple[dict[pd.DataFrame], list[str]]:
 
-    countries = get_countries(country_file)
+    if countries is None:
+        countries = get_countries(default_country_file)
+
     data = {
         c: pd.read_csv(
             get_trends_input_file(c, data_version, **kwargs),
@@ -108,18 +107,27 @@ def load_trends_from_csv(
 
 def create_lags(
     df: pd.DataFrame,
-    lags: Union[int, Iterable[int]],
+    lags: Iterable[int],
     columns: Optional[Iterable[str]] = None,
+    alternate_lags: dict[str, Iterable[int]] = {},
 ) -> pd.DataFrame:
+
     if columns is None:
         columns = df.columns
-    if not isinstance(lags, Iterable):
-        lags = [lags]
     df_list = []
-    for l in lags:
-        df_list.append(
-            df[columns].shift(l).rename(columns=lambda x: x + f"_{l}", level=0)
-        )
+
+    for c in columns:
+
+        if c in alternate_lags.keys():
+            lags_tmp = alternate_lags[c]
+        else:
+            lags_tmp = lags
+
+        for l in lags_tmp:
+            df_list.append(
+                df[[c]].shift(l).rename(columns=lambda x: x + f"_{l}", level=0)
+            )
+
     return pd.concat(df_list, axis="columns")
 
 
@@ -162,6 +170,7 @@ def discretize_labeled(
     data_tmp.y = pd.cut(data_tmp.y, bins, labels=classes)
     return data_tmp
 
+
 def stack(
     X: pd.DataFrame,
     y: pd.DataFrame,
@@ -179,6 +188,7 @@ def stack(
 
 def read_gdp(
     filename: str = DEFAULT_FILE_GDP,
+    countries: Optional[Iterable[str]] = None,
     country_name_file: str = DEFAULT_FILE_COUNTRYNAMES_EUROSTAT,
     skiprows: int = 10,
     nrows: int = 38,
@@ -210,11 +220,15 @@ def read_gdp(
     df.index = pd.to_datetime(df.index)
     df = df.resample("3M", closed="left").mean()
 
+    if countries is not None:
+        df = df.loc[:, (slice(None), countries)]
+
     return df
 
 
 def read_unempl(
     filename: str = DEFAULT_FILE_UNEMPL,
+    countries: Optional[Iterable[str]] = None,
     country_name_file: str = DEFAULT_FILE_COUNTRYNAMES_EUROSTAT,
     skiprows: int = 10,
     nrows: int = 29,
@@ -248,13 +262,14 @@ def read_unempl(
     df.index = pd.to_datetime(df.index)
     df = df.resample("3M", closed="left").mean()
 
+    if countries is not None:
+        df = df.loc[:, (slice(None), countries)]
+
     return df
 
 
 def combine_countries(
-    panel: pd.DataFrame,
-    combinations: list[list[str]] = DEFAULT_COUNTRY_COMBINATIONS,
-    average: bool = False,
+    panel: pd.DataFrame, combinations: list[list[str]], average: bool = False,
 ) -> pd.DataFrame:
 
     panel_swap = panel.swaplevel(0, 1, axis=1)

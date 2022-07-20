@@ -3,11 +3,11 @@ import logging
 import pandas as pd
 from sqlalchemy import func, select
 
-from db_stuff import db_connector
+from modules.eumf_db import DBConnector
 
 logger = logging.getLogger(__name__)
 
-DB = db_connector()
+DB = DBConnector()
 
 logger.info('Get data from DB')
 with DB.get_session() as session:

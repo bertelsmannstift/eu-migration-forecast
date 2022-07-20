@@ -2,12 +2,12 @@
 import pandas as pd
 from sqlalchemy import select
 
-from db_stuff import db_connector
+from modules.eumf_db import DBConnector
 
-KEYWORD_FILE = "data/keywords/keywords-prototype-21-04-22.xlsx"
+KEYWORD_FILE = "../data/keywords/keywords-prototype-21-04-22.xlsx"
 DATA_VERSION = "21-04-22"
 
-db = db_connector()
+db = DBConnector()
 
 df_keywords = pd.read_excel(KEYWORD_FILE)
 

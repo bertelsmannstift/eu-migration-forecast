@@ -15,7 +15,7 @@ from sqlalchemy.sql.expression import true
 Base = declarative_base()
 
 
-class db_connector:
+class DBConnector:
 
     class Version(Base):
         __tablename__ = 'l_version'

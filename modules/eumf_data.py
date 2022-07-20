@@ -16,21 +16,21 @@ import os
 
 THIS_DIR = os.path.dirname(os.path.realpath(__file__))
 DEFAULT_FILE_REGISTRATIONS = (
-    THIS_DIR + "/../../data/processed/registrations/registrations_processed.csv"
+    THIS_DIR + "data/processed/registrations/registrations_processed.csv"
 )
 DEFAULT_FILE_COUNTRIES = (
-    THIS_DIR + "/../../data/config/country_names_registrations.json"
+    THIS_DIR + "data/config/country_names_registrations.json"
 )
-DEFAULT_DIR_TRENDS = THIS_DIR + "/../../data/processed/trends"
+DEFAULT_DIR_TRENDS = THIS_DIR + "data/processed/trends"
 DEFAULT_PREFIX_TRENDS = "processed_"
 DEFAULT_FILE_LANG_ASSIGNMENT = (
-    THIS_DIR + "/../../data/config/assignment_language_country.json"
+    THIS_DIR + "data/config/assignment_language_country.json"
 )
 DEFAULT_FILE_COUNTRYNAMES_EUROSTAT = (
-    THIS_DIR + "/../../data/config/country_names_eurostat.json"
+    THIS_DIR + "data/config/country_names_eurostat.json"
 )
-DEFAULT_FILE_GDP = THIS_DIR + "/../../data/raw/eurostat/GDP_pc_quart.xls"
-DEFAULT_FILE_UNEMPL = THIS_DIR + "/../../data/raw/eurostat/Unemployment_Rate_Quart.xlsx"
+DEFAULT_FILE_GDP = THIS_DIR + "data/raw/eurostat/GDP_pc_quart.xls"
+DEFAULT_FILE_UNEMPL = THIS_DIR + "data/raw/eurostat/Unemployment_Rate_Quart.xlsx"
 
 
 def get_countries(country_file: str = DEFAULT_FILE_COUNTRIES):

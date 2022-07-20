@@ -1,187 +1,140 @@
 # %%
 #
 import json
-import os
-import random
-import string
-import sys
-import unicodedata as ud  # greek diacritics only
-from typing import Iterable
-
-import numpy as np
 import pandas as pd
-from googleapiclient.discovery import build
-from IPython.display import display
-from unidecode import unidecode  # to remove diacritics
+import os
 
-START_DATE = "2007-01"
-END_DATE = "2020-12"
+from modules.eumf_google_trends import (
+    GoogleTrendsConnector,
+    prepare_searchwords,
+    get_trends,
+    trends_to_csv,
+    get_trends_output_filename
+)
+
+import logging
+import logging.config
+logging.config.fileConfig("logging.conf")
+logger = logging.getLogger(__name__)
+
+import argparse
+parser = argparse.ArgumentParser(
+    description="Obtain data from Google Trends API and store them in csv files."
+)
+parser.add_argument(
+    "--start_iteration",
+    type=int,
+    help="no. of the first iteration of datasets to draw",
+    default=0,
+)
+parser.add_argument(
+    "--n_iterations", type=int, default=1, help="no. of datasets to draw"
+)
+parser.add_argument(
+    "--data_version", type=str, default="default", help="an integer for the accumulator"
+)
+parser.add_argument(
+    "-f", "--force", action="store_true", help="an integer for the accumulator"
+)
+parser.add_argument(
+    "--start_date", type=str, default="2007-01", help="datestring for earliest date"
+)
+parser.add_argument(
+    "--end_date", type=str, default="2020-12", help="datestring for last date"
+)
+parser.add_argument(
+    "--countries",
+    type=str,
+    nargs="+",
+    help="limit countries of origin to draw data for (2 letter ISO code)",
+    default=[],
+)
+args, unknown = parser.parse_known_args()
+
 
 KEYWORD_FILE = "data/keywords/keywords-prototype-21-04-22.xlsx"
 LANGUAGE_ASSIGNMENT_FILE = "data/config/assignment_language_country.json"
 GERMANY_TRANSLATION_FILE = "data/config/germany_language_keywords.json"
 
-DATA_VERSION = "21-04-22"
+#%%
 
-# increase iteration to draw more data for averaging
-ITERATION = sys.argv[1] if len(sys.argv) > 1 else 0
-
-
-def get_output_file(country: str) -> str:
-    directory = f"data/raw/trends/{DATA_VERSION}"
-    if not os.path.exists(directory):
-        os.makedirs(directory)
-    return os.path.join(directory, f"data_{country}_{ITERATION}.csv")
-
-
-# google trends API connection
-
-SERVER = "https://trends.googleapis.com"
-
-API_VERSION = "v1beta"
-DISCOVERY_URL_SUFFIX = "/$discovery/rest?version=" + API_VERSION
-DISCOVERY_URL = SERVER + DISCOVERY_URL_SUFFIX
-
-service = build(
-    "trends",
-    "v1beta",
-    developerKey="AIzaSyANmyabv5zka2cg0hj07BRiJPMgH6lxM4A",
-    discoveryServiceUrl=DISCOVERY_URL,
-)
+trends = GoogleTrendsConnector()
 
 df_keywords = pd.read_excel(KEYWORD_FILE)
-
 df_keywords = df_keywords.loc[~df_keywords["KeywordID"].isna()]
 df_keywords["KeywordID"] = df_keywords["KeywordID"].astype(int)
-
-with open(GERMANY_TRANSLATION_FILE) as f:
-    germany_language_keywords = json.load(f)
-
-
-def add_germany(string: str, germany_word: str) -> str:
-    return " + ".join([x + " " +
-                      germany_word for x in string.split("+")])
-
-
-def rand_str(chars=string.ascii_uppercase + string.digits, N=20):
-    return "".join(random.choice(chars) for _ in range(N))
+df_keywords = df_keywords.melt(
+    id_vars=["KeywordID", "FlagWithoutGermany"],
+    var_name="language_id",
+    value_name="keyword",
+).rename(columns={"KeywordID": "keyword_id", "FlagWithoutGermany": "without_germany"})
+df_keywords.loc[~df_keywords["without_germany"].isna(), "without_germany"] = True
+df_keywords.loc[df_keywords["without_germany"].isna(), "without_germany"] = False
+df_keywords["version_id"] = 1
 
 
-def add_removed_diacritics(keyword, fcn=unidecode):
-    kw_list = [s if s == fcn(s) else s + " + " + fcn(s)
-               for s in keyword.split("+")]
-    return "+".join(kw_list)
-
-
-languages_dia = [
-    "PL",
-    "CS",
-    "SK",
-    "FR",
-    "EL",
-    "HR",
-    "IT",
-    "LV",
-    "LI",
-    "PT",
-    "ES"]
-
-for col in germany_language_keywords.keys():
-
-    # add "germany"
-    df_keywords[col] = df_keywords.apply(
-        lambda row: add_germany(
-            row[col], germany_language_keywords[col])
-        if row.isna()["FlagWithoutGermany"]
-        else row[col],
-        axis=1,
-    )
-
-    # lower case
-    df_keywords[col] = df_keywords[col].str.lower()
-
-    # remove diacritics
-    if col in languages_dia:
-        df_keywords[col] = df_keywords[col].apply(
-            add_removed_diacritics)
-
-
-# %%
-# special case: greek diacritics
-def strip_greek_accents(s): return ud.normalize("NFD", s).translate(
-    {ord("\N{COMBINING ACUTE ACCENT}"): None}
-)
-
-
-df_keywords["EL"] = df_keywords["EL"].apply(
-    add_removed_diacritics, fcn=strip_greek_accents
-)
-
-# retrieve countries and languages
 
 with open(LANGUAGE_ASSIGNMENT_FILE) as f:
     assignment_language_country = json.load(f)
 
-countries = assignment_language_country.keys()
+tmp_assignments = []
+for country, arr in assignment_language_country.items():
+    for lan in arr:
+        tmp_assignments.append([country, lan])
+df_assignments = pd.DataFrame(tmp_assignments, columns=["country_id", "language_id"])
 
-# get responses for each country
+df_countries = (
+    df_assignments[["country_id"]]
+    .rename(columns={"country_id": "id"})
+    .drop_duplicates()
+)
+df_countries["short"] = df_countries["id"]
+
+with open(GERMANY_TRANSLATION_FILE) as f:
+    germany_language_keywords = json.load(f)
+
+df_languages = (
+    pd.Series(germany_language_keywords)
+    .rename("germany")
+    .to_frame()
+    .rename_axis(index="id")
+    .reset_index()
+)
+df_languages["short"] = df_languages["id"]
+df_languages["remove_diacritics"] = False
+for l in ["PL", "CS", "SK", "FR", "EL", "HR", "IT", "LV", "LI", "PT", "ES"]:
+    df_languages.loc[df_languages["short"] == l, "remove_diacritics"] = True
 
 
-def get_response(term, geo):
-    return pd.DataFrame(
-        service.getGraph(
-            terms=term,
-            restrictions_startDate=START_DATE,
-            restrictions_endDate=END_DATE,
-            restrictions_geo=geo,
-        ).execute()["lines"][0]["points"]
-    ).assign(**{"country": geo, "term": term})
+logger.info("Prepare Searchwords...")
 
+df_searchwords = prepare_searchwords(df_keywords, df_assignments, df_languages)
+df_searchwords = df_searchwords.merge(df_countries, left_on="country_id", right_on="id")
 
-for country in countries:
+#%%
+countries = (
+    args.countries if len(args.countries) > 0 else list(df_countries["short"].unique())
+)
 
-    if os.path.isfile(get_output_file(country)):
-        continue
+logger.info("Get Trends...")
 
-    print("\n" + country + "\n")
+for iteration in range(args.start_iteration, args.start_iteration + args.n_iterations):
 
-    df_keywords_country = df_keywords[
-        ["KeywordID"] + assignment_language_country[country]
-    ]
+    logger.info("Iteration %d", iteration)
 
-    df_keywords_country = pd.melt(
-        df_keywords_country,
-        id_vars="KeywordID",
-        var_name="Language",
-        value_name="Keyword",
-    )
+    for country in countries:
 
-    df_keywords_country = (
-        df_keywords_country.groupby("KeywordID")
-        .agg(" + ".join)
-        .drop(columns="Language")
-        .reset_index()
-    )
-
-    # add random string to shuffle Google Trends samples
-    df_keywords_country["Keyword"] = df_keywords_country["Keyword"].apply(
-        lambda s: s + " + " + rand_str()
-    )
-
-    df_responses = pd.concat(
-        [get_response(k, country)
-         for k in df_keywords_country["Keyword"]]
-    )
-
-    df_responses = (
-        df_responses.merge(
-            df_keywords_country, how="left", left_on="term", right_on="Keyword"
+        if not args.force and os.path.exists(get_trends_output_filename(country, args.data_version, iteration)):
+            continue
+        
+        logger.info(f"Get data for country {country}")
+        tmp_searchwords = df_searchwords[df_searchwords["short"] == country]
+        df_responses = get_trends(
+            trends, tmp_searchwords, args.start_date, args.end_date
         )
-        .drop(columns=["country", "term"])
-        .rename(columns={"KeywordID": "keyword_id", "Keyword": "keyword"})
-    )
-
-    df_responses.to_csv(get_output_file(country))
+        trends_to_csv(
+            df_responses, df_searchwords, country, args.data_version, iteration
+        )
 
 
 # %%

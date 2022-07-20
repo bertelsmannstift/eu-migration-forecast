@@ -1,213 +1,62 @@
 import logging
 import logging.config
-import random
-import string
-import unicodedata as ud  # greek diacritics only
-from datetime import datetime
-from re import search
 
 import pandas as pd
-from googleapiclient.discovery import build
-from pandas.core.frame import DataFrame
 from sqlalchemy import select
-from unidecode import unidecode  # to remove diacritics
 
-from db_stuff import db_connector
-
-logging.config.fileConfig('logging.conf')
-
-START_DATE = '2007-01'
-END_DATE = '2020-12'
-DATA_VERSION = '21-04-22'
-MAX_ITERATION = 10
-
-DB = db_connector()
-
-# google trends API connection
-SERVER = 'https://trends.googleapis.com'
-
-API_VERSION = 'v1beta'
-DISCOVERY_URL_SUFFIX = '/$discovery/rest?version=' + API_VERSION
-DISCOVERY_URL = SERVER + DISCOVERY_URL_SUFFIX
-
-SERVICE = build(
-    'trends',
-    'v1beta',
-    developerKey='AIzaSyANmyabv5zka2cg0hj07BRiJPMgH6lxM4A',
-    discoveryServiceUrl=DISCOVERY_URL,
+from modules.eumf_db import DBConnector
+from modules.eumf_google_trends import (
+    GoogleTrendsConnector,
+    prepare_searchwords,
+    sync_searchwords_db,
+    get_trends,
+    trends_to_db
 )
 
+logging.config.fileConfig("logging.conf")
 
-def add_germany(row, germany_word: str) -> str:
-    row['keyword'] = ' + '.join([x.strip() +
-                                 ' ' +
-                                 germany_word for x in row['keyword'].split('+')])
-    return row
+START_DATE = "2007-01"
+END_DATE = "2020-12"
+DATA_VERSION = "21-04-22"
+START_ITERATION = 0
+MAX_ITERATION = 10
 
+DB = DBConnector()
 
-def rand_str(chars=string.ascii_uppercase +
-             string.digits, N=20) -> str:
-    return ''.join(random.choice(chars) for _ in range(N))
-
-
-def add_removed_diacritics(row, fcn=unidecode):
-    row['keyword'] = ' + '.join([s.strip() if s == fcn(s) else s.strip() + ' + ' + fcn(s)
-                                 for s in row['keyword'].split('+')])
-    return row
-
-
-def strip_greek_accents(s: str) -> str:
-    return ud.normalize('NFD', s).translate(
-        {ord('\N{COMBINING ACUTE ACCENT}'): None}).strip()
-
-
-def get_response(term: str, geo: str) -> DataFrame:
-    return pd.DataFrame(
-        SERVICE.getGraph(
-            terms=term + ' + ' + rand_str(),
-            restrictions_startDate=START_DATE,
-            restrictions_endDate=END_DATE,
-            restrictions_geo=geo,
-        ).execute()['lines'][0]['points']
-    ).assign(**{'country': geo, 'term': term})
-
-
-def prepare_searchwords(keywords: DataFrame,
-                        assignments: DataFrame,
-                        languages: DataFrame) -> DataFrame:
-    # keywords = keywords[keywords['without_germany'] == True]
-    # add 'germany'
-    keywords = keywords.apply(
-        lambda row: add_germany(
-            row, languages[languages['id'] == row['language_id']]['germany'].values[0])
-        if row['without_germany'] == False
-        else row,
-        axis=1,
-    )
-
-    # # lower case
-    keywords['keyword'] = keywords['keyword'].str.lower()
-
-    # remove diacritics
-    keywords = keywords.apply(
-        lambda row: add_removed_diacritics(row)
-        if languages[languages['id'] == row['language_id']]['remove_diacritics'].values[0] == True
-        else row,
-        axis=1
-    ).apply(
-        lambda row: add_removed_diacritics(
-            row, fcn=strip_greek_accents)
-        if row['language_id'] == languages[languages['short'] == 'EL']['id'].values[0]
-        else row,
-        axis=1
-    )
-
-    # build searchwords
-    searchwords = pd.merge(
-        keywords,
-        assignments,
-        on='language_id')\
-        .assign(count=1).groupby(['country_id', 'version_id', 'keyword_id']).agg(
-            {'keyword': lambda x: ' + '.join(set(x))}).reset_index()
-    searchwords.rename(
-        columns={
-            'keyword': 'searchword'},
-        inplace=True)
-    return searchwords
-
-
-def sync_searchwords(searchwords: DataFrame,
-                     countries: DataFrame,
-                     version: int) -> DataFrame:
-    searchwords = DB.clean_df_db_dups(
-        searchwords, 'trend.d_searchword', [
-            'country_id', 'version_id', 'keyword_id'])
-
-    searchwords.to_sql(
-        'd_searchword',
-        DB.engine,
-        schema='trend',
-        method=DB.psql_insert_copy,
-        if_exists='append',
-        index=False)
-
-    with DB.get_session() as session:
-        searchwords = pd.read_sql(
-            select(DB.Searchword).filter(
-                DB.Searchword.version_id == version),
-            session.bind)
-
-    searchwords = searchwords.merge(
-        countries, left_on='country_id', right_on='id')
-
-    return searchwords
-
-
-def get_trends(searchwords: DataFrame, iteration) -> DataFrame:
-    responses = pd.concat([d for d in searchwords.apply(
-        lambda row: get_response(
-            row['searchword'], row['short']),
-        axis=1,
-    )], ignore_index=True)
-
-    # # korrekte response table bauen
-    responses = (
-        responses.merge(
-            searchwords, left_on=['term', 'country'], right_on=['searchword', 'short']
-        )
-        .drop(columns=['country_x', 'country_y', 'term', 'searchword', 'short', 'keyword_id', 'country_id', 'version_id', 'id_y'])
-        .rename(columns={'id_x': 'searchword_id', 'Keyword': 'keyword', 'date': 'date_of_value'})
-
-    )
-    responses.loc[:, 'iteration'] = iteration
-    responses.loc[:, 'date_of_retrieval'] = datetime.now()
-    responses = responses[['searchword_id', 'iteration',
-                           'value', 'date_of_value', 'date_of_retrieval']]
-
-    responses.to_sql(
-        'd_trends',
-        DB.engine,
-        schema='trend',
-        method=DB.psql_insert_copy,
-        if_exists='append',
-        index=False)
-
+TRENDS = GoogleTrendsConnector()
 
 def main():
-    logger.info('Get Data...')
+    logger.info("Get Data...")
     with DB.get_session() as session:
-        version = pd.read_sql(
-            select(DB.Version).filter(
-                DB.Version.version == DATA_VERSION),
-            session.bind)['id'].values[0].item()
+        version = (
+            pd.read_sql(
+                select(DB.Version).filter(DB.Version.version == DATA_VERSION),
+                session.bind,
+            )["id"]
+            .values[0]
+            .item()
+        )
         languages = pd.read_sql(select(DB.Language), session.bind)
         countries = pd.read_sql(select(DB.Country), session.bind)
         keywords = pd.read_sql(
-            select(DB.Keyword).filter(
-                DB.Keyword.version_id == version),
-            session.bind)
+            select(DB.Keyword).filter(DB.Keyword.version_id == version), session.bind
+        )
         assignments = pd.read_sql(select(DB.Assignment), session.bind)
 
-    logger.info('Prepare Searchwords...')
-    searchwords = prepare_searchwords(
-        keywords,
-        assignments,
-        languages)
+    logger.info("Prepare Searchwords...")
+    searchwords = prepare_searchwords(keywords, assignments, languages)
 
-    logger.info('Sync Searchwords...')
-    searchwords = sync_searchwords(
-        searchwords,
-        countries,
-        version)
+    logger.info("Sync Searchwords...")
+    searchwords = sync_searchwords_db(DB, searchwords, countries, version)
 
-    logger.info('Get Trends...')
-    for iteration in range(1, MAX_ITERATION + 1):
-        logger.info('Iteration %d', iteration)
-        get_trends(searchwords, iteration)
+    logger.info("Get Trends...")
+    for iteration in range(START_ITERATION, MAX_ITERATION):
+        logger.info("Iteration %d", iteration)
+        responses = get_trends(TRENDS, searchwords, iteration, START_DATE, END_DATE)
+        trends_to_db(DB, responses)
 
-
-if __name__ == '__main__':
+if __name__ == "__main__":
     logger = logging.getLogger(__name__)
-    logger.info('Start')
+    logger.info("Start")
     main()
-    logger.info('Finish')
+    logger.info("Finish")

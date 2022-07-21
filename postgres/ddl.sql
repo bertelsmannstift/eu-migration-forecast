@@ -1,12 +1,12 @@
 CREATE SCHEMA IF NOT EXISTS trend;
 CREATE SCHEMA IF NOT EXISTS silver;
-DROP TABLE trend.l_language CASCADE;
-DROP TABLE trend.l_keyword CASCADE;
-DROP TABLE trend.l_version CASCADE;
-DROP TABLE trend.l_country CASCADE;
-DROP TABLE trend.a_country_language CASCADE;
-DROP TABLE trend.d_searchword CASCADE;
-DROP TABLE trend.d_trends CASCADE;
+-- DROP TABLE trend.l_language CASCADE;
+-- DROP TABLE trend.l_keyword CASCADE;
+-- DROP TABLE trend.l_version CASCADE;
+-- DROP TABLE trend.l_country CASCADE;
+-- DROP TABLE trend.a_country_language CASCADE;
+-- DROP TABLE trend.d_searchword CASCADE;
+-- DROP TABLE trend.d_trends CASCADE;
 CREATE TABLE trend.l_language (
     id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     short CHAR(2),

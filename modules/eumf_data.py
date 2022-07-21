@@ -12,25 +12,26 @@ import numpy as np
 import pandas as pd
 import os
 
-# from pandas.core.frame import DataFrame
-
 THIS_DIR = os.path.dirname(os.path.realpath(__file__))
-DEFAULT_FILE_REGISTRATIONS = (
-    THIS_DIR + "data/processed/registrations/registrations_processed.csv"
+
+DEFAULT_FILE_REGISTRATIONS = os.path.join(
+    THIS_DIR, "../data/processed/registrations/registrations_processed.csv"
 )
-DEFAULT_FILE_COUNTRIES = (
-    THIS_DIR + "data/config/country_names_registrations.json"
+DEFAULT_FILE_COUNTRIES = os.path.join(
+    THIS_DIR, "../data/config/country_names_registrations.json"
 )
-DEFAULT_DIR_TRENDS = THIS_DIR + "data/processed/trends"
+DEFAULT_DIR_TRENDS = os.path.join(THIS_DIR, "../data/processed/trends")
 DEFAULT_PREFIX_TRENDS = "processed_"
-DEFAULT_FILE_LANG_ASSIGNMENT = (
-    THIS_DIR + "data/config/assignment_language_country.json"
+DEFAULT_FILE_LANG_ASSIGNMENT = os.path.join(
+    THIS_DIR, "../data/config/assignment_language_country.json"
 )
-DEFAULT_FILE_COUNTRYNAMES_EUROSTAT = (
-    THIS_DIR + "data/config/country_names_eurostat.json"
+DEFAULT_FILE_COUNTRYNAMES_EUROSTAT = os.path.join(
+    THIS_DIR, "../data/config/country_names_eurostat.json"
 )
-DEFAULT_FILE_GDP = THIS_DIR + "data/raw/eurostat/GDP_pc_quart.xls"
-DEFAULT_FILE_UNEMPL = THIS_DIR + "data/raw/eurostat/Unemployment_Rate_Quart.xlsx"
+DEFAULT_FILE_GDP = os.path.join(THIS_DIR, "../data/raw/eurostat/GDP_pc_quart.xls")
+DEFAULT_FILE_UNEMPL = os.path.join(
+    THIS_DIR, "../data/raw/eurostat/Unemployment_Rate_Quart.xlsx"
+)
 
 
 def get_countries(country_file: str = DEFAULT_FILE_COUNTRIES):
@@ -65,7 +66,7 @@ def load_registrations_from_csv(
     return data
 
 
-def get_trends_input_file(
+def get_processed_trends_filename(
     country: str,
     data_version: str,
     data_dir: str = DEFAULT_DIR_TRENDS,
@@ -90,7 +91,7 @@ def load_trends_from_csv(
 
     data = {
         c: pd.read_csv(
-            get_trends_input_file(c, data_version, **kwargs),
+            get_processed_trends_filename(c, data_version, **kwargs),
             header=[0, 1],
             index_col=0,
             parse_dates=[0],

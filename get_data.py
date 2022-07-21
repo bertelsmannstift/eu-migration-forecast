@@ -3,24 +3,30 @@
 import json
 import pandas as pd
 import os
+import argparse
 
 from modules.eumf_google_trends import (
     GoogleTrendsConnector,
     prepare_searchwords,
     get_trends,
     trends_to_csv,
-    get_trends_output_filename
+    get_trends_output_filename,
 )
 
 import logging
 import logging.config
+
 logging.config.fileConfig("logging.conf")
 logger = logging.getLogger(__name__)
 
-import argparse
+KEYWORD_FILE = "data/keywords/keywords-prototype-21-04-22.xlsx"
+LANGUAGE_ASSIGNMENT_FILE = "data/config/assignment_language_country.json"
+GERMANY_TRANSLATION_FILE = "data/config/germany_language_keywords.json"
+
 parser = argparse.ArgumentParser(
     description="Obtain data from Google Trends API and store them in csv files."
 )
+
 parser.add_argument(
     "--start_iteration",
     type=int,
@@ -31,10 +37,14 @@ parser.add_argument(
     "--n_iterations", type=int, default=1, help="no. of datasets to draw"
 )
 parser.add_argument(
-    "--data_version", type=str, default="default", help="an integer for the accumulator"
+    "-d",
+    "--data_version",
+    type=str,
+    default="default",
+    help="arbitrary string to name the version of the data drawn",
 )
 parser.add_argument(
-    "-f", "--force", action="store_true", help="an integer for the accumulator"
+    "-f", "--force", action="store_true", help="draw also existing datasets"
 )
 parser.add_argument(
     "--start_date", type=str, default="2007-01", help="datestring for earliest date"
@@ -49,12 +59,9 @@ parser.add_argument(
     help="limit countries of origin to draw data for (2 letter ISO code)",
     default=[],
 )
+
 args, unknown = parser.parse_known_args()
 
-
-KEYWORD_FILE = "data/keywords/keywords-prototype-21-04-22.xlsx"
-LANGUAGE_ASSIGNMENT_FILE = "data/config/assignment_language_country.json"
-GERMANY_TRANSLATION_FILE = "data/config/germany_language_keywords.json"
 
 #%%
 
@@ -71,7 +78,6 @@ df_keywords = df_keywords.melt(
 df_keywords.loc[~df_keywords["without_germany"].isna(), "without_germany"] = True
 df_keywords.loc[df_keywords["without_germany"].isna(), "without_germany"] = False
 df_keywords["version_id"] = 1
-
 
 
 with open(LANGUAGE_ASSIGNMENT_FILE) as f:
@@ -124,9 +130,11 @@ for iteration in range(args.start_iteration, args.start_iteration + args.n_itera
 
     for country in countries:
 
-        if not args.force and os.path.exists(get_trends_output_filename(country, args.data_version, iteration)):
+        if not args.force and os.path.exists(
+            get_trends_output_filename(country, args.data_version, iteration)
+        ):
             continue
-        
+
         logger.info(f"Get data for country {country}")
         tmp_searchwords = df_searchwords[df_searchwords["short"] == country]
         df_responses = get_trends(

@@ -19,7 +19,8 @@ from modules.eumf_db import DBConnector
 
 load_dotenv(find_dotenv())
 
-DATA_DIR = "data/raw/trends/"
+THIS_DIR = os.path.dirname(os.path.realpath(__file__))
+DATA_DIR = os.path.join(THIS_DIR, "../data/raw/trends/")
 
 @dataclass
 class GoogleTrendsConnector:

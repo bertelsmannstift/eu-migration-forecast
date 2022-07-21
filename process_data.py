@@ -4,22 +4,41 @@ import os
 import pandas as pd
 import glob
 import json
+import argparse
 
+import logging
+import logging.config
+
+logging.config.fileConfig("logging.conf")
+logger = logging.getLogger(__name__)
+
+from modules.eumf_google_trends import get_trends_output_filename
+from modules.eumf_data import get_processed_trends_filename
 
 DATA_VERSION = "21-04-22"
-files = glob.glob(f"data/raw/trends/{DATA_VERSION}/*.csv")
-
 LANGUAGE_ASSIGNMENT_FILE = "data/config/assignment_language_country.json"
 
+parser = argparse.ArgumentParser(
+    description="Obtain data from Google Trends API and store them in csv files."
+)
 
-def get_output_file(country: str) -> str:
-    directory = f"data/processed/trends/{DATA_VERSION}"
-    if not os.path.exists(directory):
-        os.makedirs(directory)
-    return os.path.join(directory, f"processed_{country}.csv")
+parser.add_argument(
+    "-d",
+    "--data_version",
+    type=str,
+    default="default",
+    help="name of the version of the raw data to be used for processing",
+)
+parser.add_argument(
+    "-d",
+    "--data_version",
+    type=str,
+    default="default",
+    help="name of the version of the raw data to be used for processing",
+)
 
+args, unknown = parser.parse_known_args()
 
-# retrieve countries of interest
 
 #%%
 
@@ -27,7 +46,6 @@ with open(LANGUAGE_ASSIGNMENT_FILE) as f:
     assignment_language_country = json.load(f)
 
 countries = assignment_language_country.keys()
-# countries = ["HR"]
 
 
 for c in countries:
@@ -50,6 +68,6 @@ for c in countries:
     # convert keyword id to str
     df.columns.set_levels(df.columns.levels[1].astype(str), level=1, inplace=True)
 
-    df.to_csv(get_output_file(c))
+    df.to_csv(get_processed_trends_filename(c, args.data_version))
 
 # %%

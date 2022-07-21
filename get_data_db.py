@@ -7,10 +7,10 @@ from sqlalchemy import select
 from modules.eumf_db import DBConnector
 from modules.eumf_google_trends import (
     GoogleTrendsConnector,
+    get_trends,
     prepare_searchwords,
     sync_searchwords_db,
-    get_trends,
-    trends_to_db
+    trends_to_db,
 )
 
 logging.config.fileConfig("logging.conf")
@@ -24,6 +24,7 @@ MAX_ITERATION = 10
 DB = DBConnector()
 
 TRENDS = GoogleTrendsConnector()
+
 
 def main():
     logger.info("Get Data...")
@@ -52,8 +53,9 @@ def main():
     logger.info("Get Trends...")
     for iteration in range(START_ITERATION, MAX_ITERATION):
         logger.info("Iteration %d", iteration)
-        responses = get_trends(TRENDS, searchwords, iteration, START_DATE, END_DATE)
-        trends_to_db(DB, responses)
+        responses = get_trends(TRENDS, searchwords, START_DATE, END_DATE)
+        trends_to_db(DB, responses, searchwords, iteration)
+
 
 if __name__ == "__main__":
     logger = logging.getLogger(__name__)

@@ -14,6 +14,8 @@ class LinearDummyModel(linear_model.LinearRegression):
     You can initialize it with fixed values for coefficients 
     and intercepts.  
 
+    Adapted from https://stackoverflow.com/questions/61491678/how-to-instantiate-a-scikit-learn-linear-model-with-known-coefficients-without-f
+
     Parameters
     ----------
     coef, intercept : arrays
@@ -56,10 +58,10 @@ class LinearDummyModel(linear_model.LinearRegression):
 
 #     def __init__(self):
 #         None
-    
+
 #     def fit(self, X, y):
 #         None
-    
+
 #     def predict(self, X, y):
 #         return X
 

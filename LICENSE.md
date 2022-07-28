@@ -2,11 +2,11 @@
 
 Unless stated otherwise, the MIT license applies to the files in this repository.
 
-Copyright (C) 2013 The Bertelsmann Stiftung
-Global Economic Dynamics (GED)
-Carl-Bertelsmann-Str. 256
-33311 Gütersloh
-Germany
+Copyright (C) 2013 The Bertelsmann Stiftung<br>
+Global Economic Dynamics (GED)<br>
+Carl-Bertelsmann-Str. 256<br>
+33311 Gütersloh<br>
+Germany<br>
 http://www.bertelsmann-stiftung.de
 
 The Bertelsmann Stiftung is an independent foundation under civil law, governed

@@ -49,7 +49,7 @@ class LinearDummyModel(linear_model.LinearRegression):
         self.coef_ = coef
 
     def fit(self, X, y):
-        ...
+        return self
         # """This model does not have a fit method."""
         # raise NotImplementedError("model is only for prediction")
 
@@ -70,12 +70,17 @@ class LinearDummyModel(linear_model.LinearRegression):
 
 
 def make_linear_dummy_model(
-    data: Labeled,
-    features: Iterable,
+    data: Optional[Labeled] = None,
+    features: Optional[Iterable] = None,
     coef: Optional[Iterable[float]] = [1.0],
     intercept: Optional[Iterable[float]] = None,
 ):
-    return pipeline.make_pipeline(
+    pipe = pipeline.make_pipeline(
         compose.make_column_transformer(("passthrough", features), remainder="drop"),
         LinearDummyModel(coef=coef, intercept=intercept),
-    ).fit(data.x, data.y)
+    )
+    
+    if data is not None:
+        return pipe.fit(data.x, data.y)
+    else:
+        return pipe

@@ -1,6 +1,6 @@
 """ Data import and basic preprocessing/cleaning """
 
-#%%
+# %%
 
 from collections.abc import Callable
 from collections.abc import Iterable
@@ -46,10 +46,13 @@ def load_registrations_from_csv(
     imputer_n_neighbors: int = 3,
     countries: Optional[Iterable[str]] = None,
 ) -> dict[str, pd.Series]:
-
     # countries = get_countries(country_file)
 
-    data = pd.read_csv(data_file, index_col=0, parse_dates=["date"],)
+    data = pd.read_csv(
+        data_file,
+        index_col=0,
+        parse_dates=["date"],
+    )
     data.set_index("date", inplace=True)
     data["value"] = pd.to_numeric(data["value"], errors="coerce")
 
@@ -72,7 +75,6 @@ def get_processed_trends_filename(
     data_dir: str = DEFAULT_DIR_TRENDS,
     data_file_prefix: str = DEFAULT_PREFIX_TRENDS,
 ) -> str:
-
     directory = os.path.join(data_dir, data_version)
     if not os.path.exists(directory):
         os.makedirs(directory)
@@ -85,7 +87,6 @@ def load_trends_from_csv(
     default_country_file: str = DEFAULT_FILE_COUNTRIES,
     **kwargs,
 ) -> tuple[dict[pd.DataFrame], list[str]]:
-
     if countries is None:
         countries = get_countries(default_country_file)
 
@@ -112,13 +113,11 @@ def create_lags(
     columns: Optional[Iterable[str]] = None,
     alternate_lags: dict[str, Iterable[int]] = {},
 ) -> pd.DataFrame:
-
     if columns is None:
         columns = df.columns
     df_list = []
 
     for c in columns:
-
         if c in alternate_lags.keys():
             lags_tmp = alternate_lags[c]
         else:
@@ -134,7 +133,6 @@ def create_lags(
 
 @dataclass
 class Labeled:
-
     x: pd.DataFrame
     y: Union[pd.DataFrame, pd.Series]
 
@@ -155,17 +153,37 @@ class Labeled:
 
 
 def stack_labeled(
-    data: Labeled, extra_column: bool = True, extra_column_name="country",
+    data: Labeled,
+    extra_column: bool = True,
+    extra_column_name: str = "country",
+    pooled: bool = True,
 ):
     stacked = data.apply(lambda df: df.stack())
+    if not pooled:
+        df_tmp = stacked.x.copy()
+        tmp_dfs = []
+        countries = stacked.x.index.get_level_values(1).unique().to_list()
+        for col in stacked.x.columns:
+            if col != "country":
+                df_tmp = stacked.x.copy()
+                for c in countries:
+                    df_tmp[col + "_" + c] = df_tmp.loc[
+                        df_tmp.index.get_level_values(1) == c, col
+                    ]
+                df_tmp = df_tmp.drop(columns=stacked.x.columns)
+                tmp_dfs.append(df_tmp)
+        stacked.x = pd.concat(tmp_dfs, axis=1).fillna(0.0)
     if extra_column:
         new_col_dict = {extra_column_name: stacked.x.index.get_level_values(1)}
         stacked.x = stacked.x.assign(**new_col_dict)
+
     return stacked
 
 
 def discretize_labeled(
-    data: Labeled, bins: Iterable[float], classes: Iterable,
+    data: Labeled,
+    bins: Iterable[float],
+    classes: Iterable,
 ):
     data_tmp = data.copy()
     data_tmp.y = pd.cut(data_tmp.y, bins, labels=classes)
@@ -194,7 +212,6 @@ def read_gdp(
     skiprows: int = 10,
     nrows: int = 38,
 ) -> pd.DataFrame:
-
     with open(country_name_file) as f:
         country_names = json.load(f)
 
@@ -234,7 +251,6 @@ def read_unempl(
     skiprows: int = 10,
     nrows: int = 29,
 ) -> pd.DataFrame:
-
     with open(country_name_file) as f:
         country_names = json.load(f)
 
@@ -270,9 +286,10 @@ def read_unempl(
 
 
 def combine_countries(
-    panel: pd.DataFrame, combinations: list[list[str]], average: bool = False,
+    panel: pd.DataFrame,
+    combinations: list[list[str]],
+    average: bool = False,
 ) -> pd.DataFrame:
-
     panel_swap = panel.swaplevel(0, 1, axis=1)
 
     for comb in combinations[0:]:

@@ -8,6 +8,7 @@ from sklearn.metrics import get_scorer, make_scorer
 from sklearn import metrics, base
 import pandas as pd
 import matplotlib.pyplot as plt
+import seaborn as sns
 import numpy as np
 from scipy.stats import wasserstein_distance
 from eumf_data import Labeled, stack_labeled, discretize_labeled
@@ -317,7 +318,8 @@ def plot_panel(
         y_lim = (y_min, y_max)
     for c, ax in zip(countries, axs.flatten()):
         sub_df = df.xs(c, level=1, axis="columns")[t_min:t_max].dropna()
-        sub_df.plot(ax=ax, ylim=y_lim, **kwargs)
+        # sub_df.plot(ax=ax, ylim=y_lim, **kwargs)
+        sns.lineplot(sub_df, ax=ax, **kwargs)
         if vline is not None:
             ymin, ymax = ax.get_ylim()
             ax.vlines(vline, ymin, ymax, color="gray", linestyles="dashed")
@@ -365,6 +367,7 @@ def cv_performance_plot(
     test_pos: Optional[int] = None,
     test_vspan: bool = True,
     benchmark_indices: Iterable[int] = [],
+    y_label=None,
     **kwargs,
 ) -> plt.Axes:
 
@@ -406,7 +409,10 @@ def cv_performance_plot(
         if test_vspan and test_scores is not None:
             ax.axvspan(test_pos - 0.5, test_pos + 0.5, color="lightgrey")
 
-    plt.ylabel(metric)
+    if y_label is not None:
+        plt.ylabel(y_label)
+    else:
+        plt.ylabel(metric)
     plt.legend()
     if fold_labels is not None:
         plt.xticks(range(len(df_tmp)), fold_labels)

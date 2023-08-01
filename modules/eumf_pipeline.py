@@ -26,7 +26,6 @@ def prepare_data(
     t_min="2009",
     t_max="2019",
 ) -> Labeled:
-
     panel_lags = eumf_data.create_lags(
         panel, lags=lags, columns=columns, alternate_lags=alternate_lags
     ).fillna(0.0)
@@ -38,7 +37,9 @@ def prepare_data(
     return Labeled(x, y)[t_min:t_max]
 
 
-def transform_data(data_in: Labeled, delta=4, logy=True, logx=True, eps_x=0.0) -> Labeled:
+def transform_data(
+    data_in: Labeled, delta=4, logy=True, logx=True, eps_x=0.0
+) -> Labeled:
     # transformation: logdiff
 
     if logx:
@@ -61,9 +62,10 @@ def inv_transform_y(
 
 
 def split_data(
-    data_in: Labeled, t_test_min="2018-01-01", t_test_max="2019-12-01",
+    data_in: Labeled,
+    t_test_min="2018-01-01",
+    t_test_max="2019-12-01",
 ) -> LabeledTuple:
-
     # t_min = "2012-01-01"
     # t_max = "2019-12-01"
     # t_split_lower = "2017-12-01"
@@ -109,9 +111,13 @@ def discretize_labels(
 
 
 def train_cls_model(
-    train: Labeled, cls=None, ct=None, cv=cv_default, params={}, scoring="f1_macro",
+    train: Labeled,
+    cls=None,
+    ct=None,
+    cv=cv_default,
+    params={},
+    scoring="f1_macro",
 ) -> model_selection.GridSearchCV:
-
     if ct is None:
         ct = compose.make_column_transformer(
             (preprocessing.OneHotEncoder(), ["country"]),
@@ -126,7 +132,11 @@ def train_cls_model(
     model = pipeline.make_pipeline(ct, cls)
 
     hptuner = model_selection.GridSearchCV(
-        model, params, cv=cv, scoring=scoring, n_jobs=-1,
+        model,
+        params,
+        cv=cv,
+        scoring=scoring,
+        n_jobs=-1,
     )
     hptuner.fit(train.x, train.y)
 
@@ -143,8 +153,8 @@ def train_reg_model(
     cv=cv_default,
     params={},
     scoring="neg_mean_squared_error",
-) -> model_selection.GridSearchCV:
-
+    random_iterations=0,
+) -> model_selection.GridSearchCV | model_selection.RandomizedSearchCV:
     ct_steps = [(dummy_encoder, dummy_cols)]
 
     ct_steps += extra_column_transformer_steps
@@ -158,10 +168,24 @@ def train_reg_model(
 
     model = pipeline.make_pipeline(ct, *extra_pipeline_steps, reg)
 
-    hptuner = model_selection.GridSearchCV(
-        model, params, cv=cv, scoring=scoring, n_jobs=-1,
-    )
-    hptuner.fit(train.x, train.y)
+    if random_iterations == 0:
+        hptuner = model_selection.GridSearchCV(
+            model,
+            params,
+            cv=cv,
+            scoring=scoring,
+            n_jobs=-1,
+        )
+        hptuner.fit(train.x, train.y)
+    else:
+        hptuner = model_selection.RandomizedSearchCV(
+            model,
+            params,
+            n_iter=random_iterations,
+            cv=cv,
+            scoring=scoring,
+            n_jobs=-1,
+        )
+        hptuner.fit(train.x, train.y)
 
     return hptuner
-
